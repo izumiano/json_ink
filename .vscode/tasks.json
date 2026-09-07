@@ -1,0 +1,65 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "cargo build --features \"logging\"",
+			"label": "build:dev",
+			"detail": "build and run in dev",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo build --features \"trace\"",
+			"label": "build:dev+trace",
+			"detail": "build and run in dev with tracing",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo build --release",
+			"label": "build:release",
+			"detail": "build and run",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo run --features \"logging\"",
+			"label": "run:dev",
+			"detail": "build and run in dev",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo run --features \"trace\"",
+			"label": "run:dev+trace",
+			"detail": "build and run in dev with tracing",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo run --release --features \"logging\"",
+			"label": "run:release",
+			"detail": "build and run",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		}
+	]
+}

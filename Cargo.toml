@@ -1,0 +1,11 @@
+[package]
+name = "json_ink"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+logging = { path = "./logging" }
+
+[features]
+logging = ["logging/logging"]
+trace = ["logging", "logging/trace"]
