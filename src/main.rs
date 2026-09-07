@@ -1,5 +1,21 @@
-use logging::log_info;
+mod parsers;
+mod string_reader;
+
+use logging::*;
+
+use crate::parsers::Json;
 
 fn main() {
-	log_info!("Hello World");
+	// let json_str = "{\"hello\": 10}";
+	// let json_str = "{";
+	let json_str = "[{\"hello\": 10.5, \"second\": [\"two\", true, false, {\"thing\": null}]}]";
+	json_str.log();
+	match Json::parse(&[json_str]) {
+		Some(val) => {
+			val.dbg();
+		}
+		None => {
+			"None".dbg();
+		}
+	}
 }

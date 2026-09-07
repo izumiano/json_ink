@@ -52,18 +52,18 @@ macro_rules! log_format {
 		$str
 	}};
 	($title:literal, $var:expr) => {{
-		let message = format!("{}: {:?}", stringify!($var), $var);
+		let message = format!("{}: {:#?}", stringify!($var), $var);
 		format!("[{}] | {message}", $title)
 	}};
 	($title:literal, $($var:expr),*) => {{
 		let mut message = String::from("");
 		$(
-			message += &format!("{}: {:?}, ", stringify!($var), $var);
+			message += &format!("{}: {:#?}, ", stringify!($var), $var);
 		)*
 		format!("[{}] | {message}", $title)
 	}};
 	($var:ident) => {
-		format!("{}: {:?}", stringify!($var), $var)
+		format!("{}: {:#?}", stringify!($var), $var)
 	};
 	($var:expr) => {{
 		format!("{}", $var)
@@ -71,7 +71,7 @@ macro_rules! log_format {
 	($($var:expr),*) => {{
 		let mut message = String::from("");
 		$(
-			message += &format!("{}: {:?}, ", stringify!($var), $var);
+			message += &format!("{}: {:#?}, ", stringify!($var), $var);
 		)*
 		message
 	}};
