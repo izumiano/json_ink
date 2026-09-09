@@ -20,6 +20,7 @@ impl<'a> Debug for JsonArray<'a> {
 }
 
 impl<'a> JsonArray<'a> {
+	#[allow(unused)]
 	pub(crate) fn new(arr: Vec<JsonValue<'a>>) -> Self {
 		Self(arr, PhantomData::default())
 	}
@@ -45,11 +46,27 @@ impl<'a> JsonArray<'a> {
 impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
 		loop {
+			trace!("array.parse");
 			sr.skip_whitespace();
-			let Some(c) = sr.peek() else {
+			let Some(mut c) = sr.peek() else {
 				trace!("Array unfinished");
 				return self.into();
 			};
+
+			if self.0.len() > 0 {
+				trace!("parse array child");
+				let child = self.0.swap_remove(self.0.len() - 1);
+				if let Some(new_child) = JsonValue::continue_parse(sr, Some(child)) {
+					self.0.push(new_child);
+
+					let Some(_c) = sr.peek() else {
+						trace!("Array unfinished");
+						return self.into();
+					};
+
+					c = _c;
+				}
+			}
 
 			if c.char == ']' as u8 {
 				sr.next();
@@ -61,21 +78,17 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 				continue;
 			}
 
-			let child = JsonValue::parse(sr);
+			let child = JsonValue::parse(sr, None);
 
 			match child {
 				Some(child) => self.0.push(child),
-				None => {
-					log_warn!("Invalid array child");
-					sr.goto_after(']');
-					return self.into();
-				}
+				None => {}
 			}
 		}
 	}
 
 	fn finish(self) -> JsonValue<'a> {
-		trace!("Finish array");
+		trace!("Finish array", self.0);
 
 		JsonArray(self.0, self.1).into()
 	}

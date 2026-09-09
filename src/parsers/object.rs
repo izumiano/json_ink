@@ -11,7 +11,29 @@ use crate::{
 pub struct JsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
 
 #[derive(PartialEq, Debug)]
-pub struct IncJsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
+pub struct IncJsonObject<'a> {
+	map: HashMap<String, JsonValue<'a>>,
+	newest_property: Option<IncProperty<'a>>,
+}
+
+#[derive(PartialEq, Debug)]
+enum Property<'a> {
+	Complete(String, JsonValue<'a>),
+	Incomplete(IncProperty<'a>),
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) enum PropertyKey {
+	Complete(String),
+	Incomplete(String),
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) struct IncProperty<'a> {
+	pub key: PropertyKey,
+	pub value: Box<Option<JsonValue<'a>>>,
+	pub found_colon: bool,
+}
 
 impl<'a> Debug for JsonObject<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -19,7 +41,26 @@ impl<'a> Debug for JsonObject<'a> {
 	}
 }
 
+impl<'a> IncJsonObject<'a> {
+	#[allow(unused)]
+	pub(crate) fn new(
+		vals: Vec<(&str, JsonValue<'a>)>,
+		newest_property: Option<IncProperty<'a>>,
+	) -> Self {
+		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
+		for (key, val) in vals {
+			map.insert(key.to_string(), val);
+		}
+
+		Self {
+			map,
+			newest_property,
+		}
+	}
+}
+
 impl<'a> JsonObject<'a> {
+	#[allow(unused)]
 	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> Self {
 		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
 		for (key, val) in vals {
@@ -39,7 +80,10 @@ impl<'a> JsonObject<'a> {
 
 		trace!("is object");
 
-		let val = IncJsonObject(HashMap::new());
+		let val = IncJsonObject {
+			map: HashMap::new(),
+			newest_property: None,
+		};
 
 		let val = val.parse(sr);
 
@@ -62,65 +106,180 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 				return self.finish();
 			}
 
-			let Some((key, value)) = self.parse_property(sr) else {
-				sr.goto_safe(); // TODO
+			let Some(property) = self.parse_property(sr) else {
 				continue;
 			};
 
-			trace!(format!("new property | \"{key}\": {value:#?}"));
+			match property {
+				Property::Complete(key, value) => {
+					trace!(format!("new property | \"{key}\": {value:#?}"));
+					self.map.insert(key, value);
+					sr.skip_whitespace();
 
-			self.0.insert(key, value);
-			sr.goto_safe();
+					if let Some(c) = sr.peek()
+						&& c.char == ',' as u8
+					{
+						sr.curr_index += 1;
+						sr.skip_whitespace();
+					}
+				}
+				Property::Incomplete(prop) => {
+					trace!(format!("new inc property | {prop:#?}"));
+					self.newest_property = Some(prop);
+				}
+			}
 		}
 
 		self.into()
 	}
 
 	fn finish(self) -> JsonValue<'a> {
-		trace!("Finish object");
-		JsonObject(self.0).into()
+		trace!("Finish object", self);
+
+		if let Some(property) = self.newest_property {
+			log_warn!("Unfinished property", property);
+		}
+
+		JsonObject(self.map).into()
 	}
 }
 
 impl<'a> IncJsonObject<'a> {
-	fn parse_property(&self, sr: &mut StringReader) -> Option<(String, JsonValue<'a>)> {
-		trace!("parse property");
-		sr.skip_whitespace();
+	fn parse_key(
+		&self,
+		sr: &mut StringReader,
+		first: usize,
+		first_off: usize,
+	) -> Option<(PropertyKey, bool)> {
+		let Some(property_name_end) = sr.find(|c| c.char == '"' as u8) else {
+			trace!("Failed finding '\"'");
+			if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
+				return Some((PropertyKey::Incomplete(name), false));
+			}
 
-		let Some(first) = sr.next() else {
-			log_warn!("Empty string");
 			return None;
 		};
 
-		if first.char != '"' as u8 {
-			log_warn!(format!(
-				"First character of property was not '\"', but instead '{}'",
-				first.char as char
-			));
+		let prop_end = property_name_end;
+
+		let Ok(name) = sr.get_string((first + first_off)..prop_end.index) else {
 			return None;
+		};
+
+		if let Some(_) = sr.find(|c| c.char == ':' as u8) {
+			return Some((PropertyKey::Complete(name), true));
+		};
+
+		trace!("Failed finding ':'");
+
+		Some((PropertyKey::Complete(name), false))
+	}
+
+	fn parse_property(&mut self, sr: &mut StringReader) -> Option<Property<'a>> {
+		trace!("parse property");
+
+		let property_key;
+		let mut property_value = None;
+		let found_colon;
+		if let Some(mut property) = self.newest_property.take() {
+			trace!("parse_property -> continuation", property);
+
+			match property.key {
+				PropertyKey::Incomplete(orig_name) => {
+					let start_index = sr.curr_index;
+
+					let Some(key) = self.parse_key(sr, start_index, 0) else {
+						return Some(Property::Incomplete(IncProperty {
+							key: PropertyKey::Incomplete(orig_name),
+							value: property.value,
+							found_colon: property.found_colon,
+						}));
+					};
+
+					property_key = match key {
+						(PropertyKey::Complete(name), _found_colon) => {
+							found_colon = _found_colon;
+							PropertyKey::Complete(orig_name + &name)
+						}
+						(PropertyKey::Incomplete(name), _found_colon) => {
+							found_colon = _found_colon;
+							PropertyKey::Incomplete(orig_name + &name)
+						}
+					};
+					property_value = property.value.take();
+				}
+				PropertyKey::Complete(name) => {
+					if !property.found_colon {
+						let Some(_) = sr.find(|c| c.char == ':' as u8) else {
+							trace!("Failed finding ':'");
+							return Some(Property::Incomplete(IncProperty {
+								key: PropertyKey::Complete(name),
+								value: property.value,
+								found_colon: false,
+							}));
+						};
+					}
+
+					property_key = PropertyKey::Complete(name);
+					property_value = property.value.take();
+					found_colon = true;
+				}
+			}
+		} else {
+			trace!("parse_property -> normal");
+			sr.skip_whitespace();
+
+			let Some(first) = sr.next() else {
+				log_warn!("Empty string");
+				return None;
+			};
+
+			if first.char != '"' as u8 {
+				log_warn!(format!(
+					"First character of property was not '\"', but instead '{}'",
+					first.char as char
+				));
+				sr.goto_safe();
+				return None;
+			}
+
+			let Some((key, _found_colon)) = self.parse_key(sr, first.index, 1) else {
+				trace!("failed parsing key");
+				return None;
+			};
+
+			property_key = key;
+			found_colon = _found_colon;
 		}
 
-		let Some(property_name_end) = sr.find(|c| c.char == '"' as u8) else {
-			log_warn!("Failed finding '\"'");
-			return None;
-		};
-
-		let Some(_) = sr.find(|c| c.char == ':' as u8) else {
-			log_warn!("Failed finding ':'");
-			return None;
-		};
-
 		sr.skip_whitespace();
 
-		let property_name = sr
-			.get_str((first.index + 1)..property_name_end.index)
-			.unwrap();
+		trace!(property_key, found_colon);
 
-		trace!(property_name);
+		let property_value = JsonValue::parse(sr, property_value);
 
-		let property_value = JsonValue::parse(sr);
-
-		Some((property_name, property_value.unwrap_or(JsonValue::Unset)))
+		match property_value {
+			Some(
+				JsonValue::IncArray(_)
+				| JsonValue::IncBool(_)
+				| JsonValue::IncNull(_)
+				| JsonValue::IncNumber(_)
+				| JsonValue::IncObject(_)
+				| JsonValue::IncString(_),
+			)
+			| None => Some(Property::Incomplete(IncProperty {
+				key: property_key,
+				value: Box::new(property_value),
+				found_colon,
+			})),
+			Some(_) => Some(Property::Complete(
+				match property_key {
+					PropertyKey::Complete(name) => name,
+					PropertyKey::Incomplete(name) => name,
+				},
+				property_value.unwrap_or(JsonValue::Unset),
+			)),
+		}
 	}
 }
 

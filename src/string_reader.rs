@@ -107,6 +107,7 @@ impl<'a> StringReader<'a> {
 		}
 	}
 
+	#[allow(unused)]
 	pub fn goto_after(&mut self, char: char) {
 		while let Some(c) = self.next()
 			&& c.char != char as u8
@@ -137,8 +138,12 @@ impl<'a> StringReader<'a> {
 		}
 	}
 
-	pub fn get_str(&self, range: Range<usize>) -> Result<String, std::str::Utf8Error> {
-		Ok(str::from_utf8(&self.bytes[range])?.to_string())
+	pub fn get_str(&self, range: Range<usize>) -> Result<&str, std::str::Utf8Error> {
+		Ok(str::from_utf8(&self.bytes[range])?)
+	}
+
+	pub fn get_string(&self, range: Range<usize>) -> Result<String, std::str::Utf8Error> {
+		Ok(self.get_str(range)?.to_string())
 	}
 }
 

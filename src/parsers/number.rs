@@ -40,16 +40,16 @@ impl JsonNumber {
 		trace!(char);
 
 		if char == '-' {
-			trace!("is number");
 			trace!("number is negative");
 			negative = true;
 		} else if char == '.' {
-			trace!("is number");
 			trace!("first number char was dot");
 			dot_index = Some(-1);
 		} else if !JsonNumber::is_valid_char(char) {
 			return None;
 		}
+
+		trace!("is number");
 
 		if !negative && dot_index.is_none() {
 			sr.curr_index -= 1;
@@ -132,7 +132,7 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 	}
 
 	fn finish(self) -> JsonValue<'a> {
-		trace!("Finish number");
+		trace!("Finish number", self);
 
 		JsonNumber(self.val * (self.is_negative as i64 as f64 * -2. + 1.)).into()
 	}

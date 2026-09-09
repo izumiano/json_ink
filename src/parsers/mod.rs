@@ -21,24 +21,38 @@ pub mod number;
 pub mod object;
 pub mod string;
 
-pub struct Json;
+pub struct JsonInk<'a>(Option<JsonValue<'a>>);
 
-impl Json {
-	pub fn parse<'a>(strs: &'a [&str]) -> Option<JsonValue<'a>> {
+impl<'a> JsonInk<'a> {
+	pub fn new() -> Self {
+		Self(None)
+	}
+
+	#[allow(unused)]
+	pub fn parse(str: &'a str) -> Option<JsonValue<'a>> {
+		let mut instance = Self::new();
+		instance.parse_part(str);
+		instance.0.take()
+	}
+
+	pub fn parse_part<'b>(&mut self, str: &'b str) -> &Option<JsonValue<'a>> {
 		trace!("parse");
-		let mut curr_value: Option<JsonValue<'a>> = None;
-		for str in strs {
-			let mut sr = StringReader::new(str);
-			curr_value = if curr_value.is_none() {
-				JsonValue::parse(&mut sr)
-			} else {
-				curr_value
-			};
-		}
+		let mut sr = StringReader::new(str);
 
-		println!("\n");
+		let val = JsonValue::parse(&mut sr, self.0.take());
 
-		curr_value
+		self.0 = val;
+
+		&self.0
+	}
+
+	pub fn get(&self) -> &Option<JsonValue<'a>> {
+		&self.0
+	}
+
+	#[allow(unused)]
+	pub fn take(self) -> Option<JsonValue<'a>> {
+		self.0
 	}
 }
 
@@ -67,7 +81,46 @@ pub enum JsonValue<'a> {
 }
 
 impl<'a> JsonValue<'a> {
-	fn parse(sr: &mut StringReader) -> Option<Self> {
+	fn continue_parse(sr: &mut StringReader, value: Option<Self>) -> Option<Self> {
+		trace!("continue_parse");
+		if let Some(value) = value {
+			match value {
+				JsonValue::IncObject(object) => {
+					trace!(" -> object");
+					return Some(object.parse(sr));
+				}
+				JsonValue::IncArray(array) => {
+					trace!(" -> array");
+					return Some(array.parse(sr));
+				}
+				JsonValue::IncString(string) => {
+					trace!(" -> string");
+					return Some(string.parse(sr));
+				}
+				JsonValue::IncNumber(number) => {
+					trace!(" -> number");
+					return Some(number.parse(sr));
+				}
+				JsonValue::IncBool(bool) => {
+					trace!(" -> bool");
+					return Some(bool.parse(sr));
+				}
+				JsonValue::IncNull(null) => {
+					trace!(" -> null");
+					return Some(null.parse(sr));
+				}
+				_ => {
+					trace!(" -> none");
+					return Some(value);
+				}
+			}
+		}
+
+		trace!(" -> none");
+		value
+	}
+
+	fn parse(sr: &mut StringReader, value: Option<Self>) -> Option<Self> {
 		macro_rules! try_start_parse {
 			($name:ident, $curr_value:ident, $sr:expr, $first_char:expr) => {
 				if let Some(val) = $name::try_start_parse($sr, &$first_char) {
@@ -77,14 +130,18 @@ impl<'a> JsonValue<'a> {
 			};
 		}
 
+		if let Some(value) = Self::continue_parse(sr, value) {
+			return Some(value);
+		}
+
 		sr.skip_whitespace();
 
 		let Some(first_char) = sr.next() else {
-			log_warn!("String was empty.");
+			trace!("String was empty.");
 			return None;
 		};
 
-		sr.skip_whitespace();
+		trace!("normal parse");
 
 		try_start_parse!(JsonObject, curr_value, sr, first_char);
 		try_start_parse!(JsonArray, curr_value, sr, first_char);
@@ -92,6 +149,8 @@ impl<'a> JsonValue<'a> {
 		try_start_parse!(JsonNumber, curr_value, sr, first_char);
 		try_start_parse!(JsonBool, curr_value, sr, first_char);
 		try_start_parse!(JsonNull, curr_value, sr, first_char);
+
+		log_warn!("could not parse to any type");
 
 		None
 	}
@@ -121,18 +180,22 @@ impl<'a> Debug for JsonValue<'a> {
 
 #[cfg(test)]
 mod tests {
+	use crate::parsers::object::{IncProperty, PropertyKey};
+
 	use super::*;
 
 	#[test]
 	fn invalid() {
-		assert_eq!(Json::parse(&[r#""#]), None);
-		assert_eq!(Json::parse(&[r#"      "#]), None);
+		assert_eq!(JsonInk::parse(r#""#), None);
+		assert_eq!(JsonInk::parse(r#"      "#), None);
 		assert_eq!(
-			Json::parse(&[r#"   				
+			JsonInk::parse(
+				r#"   				
 		
-		,}
+			,}
 		
-		   "#]),
+			 "#
+			),
 			None
 		);
 	}
@@ -140,43 +203,51 @@ mod tests {
 	#[test]
 	fn object_equal() {
 		assert_eq!(
-			Json::parse(&[r#"{}"#]),
+			JsonInk::parse(r#"{}"#),
 			Some(JsonObject::new(vec![]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 				{
 					"prop": true
 				}
-			"#]),
+			"#
+			),
 			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 				{
 					"prop": true,
 				}
-			"#]),
+			"#
+			),
 			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 				{
 					"prop": false
 				}
-			"#]),
+			"#
+			),
 			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 				{
 					"prop": false,
 				}
-			"#]),
+			"#
+			),
 			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
 		);
 	}
@@ -184,7 +255,7 @@ mod tests {
 	#[test]
 	fn object_not_equal() {
 		assert_ne!(
-			Json::parse(&[r#"{"prop": true}"#]),
+			JsonInk::parse(r#"{"prop": true}"#),
 			Some(JsonObject::new(vec![("prop2", JsonBool(true).into())]).into())
 		);
 	}
@@ -192,30 +263,37 @@ mod tests {
 	#[test]
 	fn array_equal() {
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 			[]
-			"#]),
+			"#
+			),
 			Some(JsonArray::new(vec![]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 			["hello"]
-			"#]),
+			"#
+			),
 			Some(JsonArray::new(vec![JsonValue::String(JsonString("hello".to_string()))]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 			[
 				{}
 			]
-			"#]),
+			"#
+			),
 			Some(JsonArray::new(vec![JsonObject::new(vec![]).into()]).into())
 		);
 
 		assert_eq!(
-			Json::parse(&[r#"
+			JsonInk::parse(
+				r#"
 			[
 				{
 					"prop": "str",
@@ -231,7 +309,8 @@ mod tests {
 				],
 				15.3,
 			]
-			"#]),
+			"#
+			),
 			Some(
 				JsonArray::new(vec![
 					JsonObject::new(vec![
@@ -253,7 +332,7 @@ mod tests {
 	#[test]
 	fn string_equal() {
 		assert_eq!(
-			Json::parse(&[r#""str""#]),
+			JsonInk::parse(r#""str""#),
 			Some(JsonString("str".into()).into())
 		)
 	}
@@ -261,7 +340,7 @@ mod tests {
 	#[test]
 	fn string_not_equal() {
 		assert_ne!(
-			Json::parse(&[r#""str""#]),
+			JsonInk::parse(r#""str""#),
 			Some(JsonString("str2".into()).into())
 		)
 	}
@@ -269,7 +348,7 @@ mod tests {
 	#[test]
 	fn number_equal() {
 		assert_eq!(
-			Json::parse(&[r#"10.5"#]),
+			JsonInk::parse(r#"10.5"#),
 			Some(
 				IncJsonNumber {
 					val: 10.5,
@@ -280,7 +359,7 @@ mod tests {
 			)
 		);
 		assert_eq!(
-			Json::parse(&[r#".5"#]),
+			JsonInk::parse(r#".5"#),
 			Some(
 				IncJsonNumber {
 					val: 0.5,
@@ -290,27 +369,126 @@ mod tests {
 				.into()
 			)
 		);
-		assert_eq!(Json::parse(&[r#"10.5,"#]), Some(JsonNumber(10.5).into()));
-		assert_eq!(Json::parse(&[r#".5}"#]), Some(JsonNumber(0.5).into()));
-		assert_eq!(Json::parse(&[r#"-.5]"#]), Some(JsonNumber(-0.5).into()));
-		assert_eq!(Json::parse(&[r#"0.3,"#]), Some(JsonNumber(0.3).into()));
-		assert_eq!(Json::parse(&[r#"-0.7}"#]), Some(JsonNumber(-0.7).into()));
-		assert_eq!(Json::parse(&[r#"100]"#]), Some(JsonNumber(100.).into()));
+		assert_eq!(JsonInk::parse(r#"10.5,"#), Some(JsonNumber(10.5).into()));
+		assert_eq!(JsonInk::parse(r#".5}"#), Some(JsonNumber(0.5).into()));
+		assert_eq!(JsonInk::parse(r#"-.5]"#), Some(JsonNumber(-0.5).into()));
+		assert_eq!(JsonInk::parse(r#"0.3,"#), Some(JsonNumber(0.3).into()));
+		assert_eq!(JsonInk::parse(r#"-0.7}"#), Some(JsonNumber(-0.7).into()));
+		assert_eq!(JsonInk::parse(r#"100]"#), Some(JsonNumber(100.).into()));
 	}
 
 	#[test]
 	fn number_not_equal() {
-		assert_ne!(Json::parse(&[r#"hello"#]), Some(JsonNumber(10.5).into()));
+		assert_ne!(JsonInk::parse(r#"hello"#), Some(JsonNumber(10.5).into()));
 	}
 
 	#[test]
 	fn bool_equal() {
-		assert_eq!(Json::parse(&[r#"true"#]), Some(JsonBool(true).into()));
-		assert_eq!(Json::parse(&[r#"false"#]), Some(JsonBool(false).into()));
+		assert_eq!(JsonInk::parse(r#"true"#), Some(JsonBool(true).into()));
+		assert_eq!(JsonInk::parse(r#"false"#), Some(JsonBool(false).into()));
 	}
 
 	#[test]
 	fn null_equal() {
-		assert_eq!(Json::parse(&[r#"null"#]), Some(JsonNull.into()));
+		assert_eq!(JsonInk::parse(r#"null"#), Some(JsonNull.into()));
+	}
+
+	macro_rules! assert_split_eq {
+		[$($vals:literal),+ $(,)?] => {
+			let mut parser = JsonInk::new();
+			let arr = [$($vals),+];
+			for part in arr {
+				parser.parse_part(part);
+			}
+
+			assert_eq!(parser.take(), JsonInk::parse(&arr.join("")), "split == single");
+		};
+		([$($vals:literal),+ $(,)?], None) => {
+			let mut parser = JsonInk::new();
+			let arr = [$($vals),+];
+			for part in arr {
+				parser.parse_part(part);
+			}
+
+			let joined = &arr.join("");
+			let val = parser.take();
+			let val2 = JsonInk::parse(joined);
+			assert_eq!(val2, None, "normal == intended");
+			assert_eq!(val, None, "split == intended");
+			assert_eq!(val, val2, "split == normal");
+		};
+		([$($vals:literal),* $(,)?], $other:expr) => {
+			let mut parser = JsonInk::new();
+			let arr = [$($vals),*];
+			for part in arr {
+				parser.parse_part(part);
+			}
+
+			let joined = &arr.join("");
+			let val = parser.take();
+			let val2 = JsonInk::parse(joined);
+			assert_eq!(val2, Some($other), "normal == intended");
+			assert_eq!(val, Some($other), "split == intended");
+			assert_eq!(val, val2, "split == normal");
+		};
+	}
+
+	#[test]
+	fn split_object() {
+		assert_split_eq!(
+			["{", r#""prop""#, ":", "\t10", ".5,", "}"],
+			JsonObject::new(vec![("prop", JsonNumber(10.5).into())]).into()
+		);
+
+		assert_split_eq!(
+			[r#"{"prop"#, r#"":"#, "[", ".5,", "]}"],
+			JsonObject::new(vec![(
+				"prop",
+				JsonArray::new(vec![JsonNumber(0.5).into()]).into()
+			)])
+			.into()
+		);
+
+		assert_split_eq!(
+			[r#"{"prop"#, r#" two"}"#],
+			IncJsonObject::new(
+				vec![],
+				Some(IncProperty {
+					key: PropertyKey::Complete("prop two".to_string()),
+					value: Box::new(None),
+					found_colon: false
+				})
+			)
+			.into()
+		);
+	}
+
+	#[test]
+	fn split_array() {
+		assert_split_eq!["[", "10.5,", r#""str"]"#];
+		assert_split_eq!(
+			["[", r#""he"#, "lllllloooo", r#"oo"]"#],
+			JsonArray::new(vec![JsonString("helllllloooooo".to_string()).into()]).into()
+		);
+	}
+
+	#[test]
+	fn split_string() {
+		assert_split_eq![r#""  hello "#, " wo", r#"rld  ","#];
+	}
+
+	#[test]
+	fn split_number() {
+		assert_split_eq!["", "-", "10", ".3,"];
+	}
+
+	#[test]
+	fn split_bool() {
+		assert_split_eq!["tr", "ue,"];
+	}
+
+	#[test]
+	fn split_null() {
+		assert_split_eq!["nu", "ll"];
 	}
 }

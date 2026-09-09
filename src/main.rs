@@ -1,26 +1,29 @@
 mod parsers;
 mod string_reader;
 
+use std::io::{self, Error};
+
 use logging::*;
 
-use crate::parsers::Json;
+use crate::parsers::JsonInk;
 
-fn main() {
-	// let json_str = "{\"hello\": 10}";
-	// let json_str = "{";
-	// let json_str = "[{\"hello\": 10.5, \"second\": [\"two\", true, false, {\"thing\": null}]}]";
+fn main() -> Result<(), Error> {
+	let mut parser = JsonInk::new();
 
-	let json_str = r#"
-	false
-	"#;
-	json_str.log();
+	let stdin = io::stdin();
+	loop {
+		let mut buffer = String::new();
+		stdin.read_line(&mut buffer)?;
 
-	match Json::parse(&[json_str]) {
-		Some(val) => {
-			val.dbg();
-		}
-		None => {
-			"None".dbg();
+		parser.parse_part(&buffer.replace("\r\n", "").replace("\n", ""));
+
+		match parser.get() {
+			Some(val) => {
+				val.dbg();
+			}
+			None => {
+				"None".dbg();
+			}
 		}
 	}
 }

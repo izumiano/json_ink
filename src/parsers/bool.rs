@@ -46,7 +46,7 @@ impl<'a> JsonParsable<'a> for IncJsonBool {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
 		match self {
 			IncJsonBool::True(orig_count) => {
-				match sr.str_compare("true") {
+				match sr.str_compare(&"true"[orig_count..]) {
 					StrCompareIsMatch::True(count) => {
 						sr.curr_index += count;
 
@@ -65,7 +65,7 @@ impl<'a> JsonParsable<'a> for IncJsonBool {
 				};
 			}
 			IncJsonBool::False(orig_count) => {
-				match sr.str_compare("false") {
+				match sr.str_compare(&"false"[orig_count..]) {
 					StrCompareIsMatch::True(count) => {
 						sr.curr_index += count;
 
@@ -87,6 +87,8 @@ impl<'a> JsonParsable<'a> for IncJsonBool {
 	}
 
 	fn finish(self) -> JsonValue<'a> {
+		trace!("Finish bool", self);
+
 		match self {
 			IncJsonBool::True(_) => JsonBool(true).into(),
 			IncJsonBool::False(_) => JsonBool(false).into(),

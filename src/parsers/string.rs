@@ -36,21 +36,38 @@ impl JsonString {
 	}
 }
 
+impl IncJsonString {
+	fn combine_strings(mut self, other: &str) -> Self {
+		let str = match self.0 {
+			Some(old_str) => old_str + other,
+			None => other.to_string(),
+		};
+
+		self.0 = Some(str);
+
+		self
+	}
+}
+
 impl<'a> JsonParsable<'a> for IncJsonString {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
 		let start_index = sr.curr_index;
 
-		if let Some(string_end) = sr.find(|c| c.char == '"' as u8) {
+		let str = if let Some(string_end) = sr.find(|c| c.char == '"' as u8) {
 			let str = sr.get_str(start_index..string_end.index).unwrap();
-			JsonString(str).into()
+			self.combine_strings(str).finish()
 		} else {
 			let str = sr.get_str(start_index..sr.curr_index).unwrap();
-			IncJsonString(Some(str)).into()
-		}
+			self.combine_strings(str).into()
+		};
+
+		trace!("string.parse", str);
+
+		str
 	}
 
 	fn finish(self) -> JsonValue<'a> {
-		trace!("Finish string");
+		trace!("Finish string", self);
 		JsonString(self.0.unwrap()).into()
 	}
 }

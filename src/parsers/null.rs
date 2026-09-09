@@ -25,7 +25,6 @@ impl JsonNull {
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
 		if first_char.char != 'n' as u8 {
-			trace!("not null", first_char);
 			return None;
 		}
 
@@ -39,7 +38,7 @@ impl JsonNull {
 
 impl<'a> JsonParsable<'a> for IncJsonNull {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
-		match sr.str_compare("null") {
+		match sr.str_compare(&"null"[self.0..]) {
 			StrCompareIsMatch::True(count) => {
 				sr.curr_index += count;
 
@@ -51,11 +50,15 @@ impl<'a> JsonParsable<'a> for IncJsonNull {
 
 				return val.into();
 			}
-			StrCompareIsMatch::False => todo!(),
+			StrCompareIsMatch::False => {
+				return JsonValue::Unset;
+			}
 		};
 	}
 
 	fn finish(self) -> JsonValue<'a> {
+		trace!("Finish null", self);
+
 		JsonNull.into()
 	}
 }
