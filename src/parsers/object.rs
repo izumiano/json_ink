@@ -7,7 +7,7 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-// #[derive(Debug)]
+#[derive(PartialEq)]
 pub struct JsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
 
 impl<'a> Debug for JsonObject<'a> {
@@ -17,6 +17,15 @@ impl<'a> Debug for JsonObject<'a> {
 }
 
 impl<'a> JsonObject<'a> {
+	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> JsonObject<'a> {
+		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
+		for (key, val) in vals {
+			map.insert(key.to_string(), val);
+		}
+
+		JsonObject(map)
+	}
+
 	pub fn try_start_parse(
 		sr: &mut StringReader,
 		first_char: &CharWithIndex,
@@ -38,6 +47,8 @@ impl<'a> JsonObject<'a> {
 impl<'a> JsonObject<'a> {
 	fn parse(&mut self, sr: &mut StringReader) {
 		while let Some(c) = sr.peek() {
+			trace!("object::parse", c);
+
 			if c.char == '}' as u8 {
 				trace!("Finish object");
 				sr.next();
@@ -48,6 +59,8 @@ impl<'a> JsonObject<'a> {
 				sr.goto_safe(); // TODO
 				continue;
 			};
+
+			trace!(format!("new property | \"{key}\": {value:#?}"));
 
 			self.0.insert(key, value);
 			sr.goto_safe();
@@ -92,5 +105,11 @@ impl<'a> JsonObject<'a> {
 		let property_value = JsonValue::parse(sr);
 
 		Some((property_name, property_value.unwrap_or(JsonValue::Unset)))
+	}
+}
+
+impl<'a> From<JsonObject<'a>> for JsonValue<'a> {
+	fn from(value: JsonObject<'a>) -> Self {
+		JsonValue::Object(value)
 	}
 }

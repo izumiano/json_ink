@@ -7,6 +7,7 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
+#[derive(PartialEq)]
 pub struct JsonString(pub String);
 
 impl Debug for JsonString {
@@ -34,5 +35,11 @@ impl JsonString {
 			sr.get_str((first_char.index + 1)..(string_end.index))
 				.unwrap(),
 		)));
+	}
+}
+
+impl<'a> From<JsonString> for JsonValue<'a> {
+	fn from(value: JsonString) -> Self {
+		JsonValue::String(value)
 	}
 }

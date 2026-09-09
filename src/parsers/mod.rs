@@ -38,6 +38,7 @@ impl Json {
 	}
 }
 
+#[derive(PartialEq)]
 pub enum JsonValue<'a> {
 	Object(JsonObject<'a>),
 	Array(JsonArray<'a>),
@@ -90,5 +91,179 @@ impl<'a> Debug for JsonValue<'a> {
 			Self::Null(arg0) => write!(f, "{:#?}", arg0),
 			Self::Unset => write!(f, "Unset"),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn invalid() {
+		assert_eq!(Json::parse(&[r#""#]), None);
+		assert_eq!(Json::parse(&[r#"      "#]), None);
+		assert_eq!(
+			Json::parse(&[r#"   				
+		
+		,}
+		
+		   "#]),
+			None
+		);
+	}
+
+	#[test]
+	fn object_equal() {
+		assert_eq!(
+			Json::parse(&[r#"{}"#]),
+			Some(JsonObject::new(vec![]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+				{
+					"prop": true
+				}
+			"#]),
+			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+				{
+					"prop": true,
+				}
+			"#]),
+			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+				{
+					"prop": false
+				}
+			"#]),
+			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+				{
+					"prop": false,
+				}
+			"#]),
+			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
+		);
+	}
+
+	#[test]
+	fn object_not_equal() {
+		assert_ne!(
+			Json::parse(&[r#"{"prop": true}"#]),
+			Some(JsonObject::new(vec![("prop2", JsonBool(true).into())]).into())
+		);
+	}
+
+	#[test]
+	fn array_equal() {
+		assert_eq!(
+			Json::parse(&[r#"
+			[]
+			"#]),
+			Some(JsonArray::new(vec![]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+			["hello"]
+			"#]),
+			Some(JsonArray::new(vec![JsonValue::String(JsonString("hello".to_string()))]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+			[
+				{}
+			]
+			"#]),
+			Some(JsonArray::new(vec![JsonObject::new(vec![]).into()]).into())
+		);
+
+		assert_eq!(
+			Json::parse(&[r#"
+			[
+				{
+					"prop": "str",
+					"val": 10,
+				},
+				-5.3,
+				-.2,
+				.9,
+				[
+					{
+						"val": null
+					}
+				],
+				15.3,
+			]
+			"#]),
+			Some(
+				JsonArray::new(vec![
+					JsonObject::new(vec![
+						(&"prop", JsonString("str".to_string()).into()),
+						(&"val", JsonNumber(10.).into())
+					])
+					.into(),
+					JsonNumber(-5.3).into(),
+					JsonNumber(-0.2).into(),
+					JsonNumber(0.9).into(),
+					JsonArray::new(vec![JsonObject::new(vec![("val", JsonNull.into())]).into()]).into(),
+					JsonNumber(15.3).into(),
+				])
+				.into()
+			)
+		);
+	}
+
+	#[test]
+	fn string_equal() {
+		assert_eq!(
+			Json::parse(&[r#""str""#]),
+			Some(JsonString("str".into()).into())
+		)
+	}
+
+	#[test]
+	fn string_not_equal() {
+		assert_ne!(
+			Json::parse(&[r#""str""#]),
+			Some(JsonString("str2".into()).into())
+		)
+	}
+
+	#[test]
+	fn number_equal() {
+		assert_eq!(Json::parse(&[r#"10.5"#]), Some(JsonNumber(10.5).into()));
+		assert_eq!(Json::parse(&[r#".5"#]), Some(JsonNumber(0.5).into()));
+		assert_eq!(Json::parse(&[r#"-.5"#]), Some(JsonNumber(-0.5).into()));
+		assert_eq!(Json::parse(&[r#"0.3"#]), Some(JsonNumber(0.3).into()));
+		assert_eq!(Json::parse(&[r#"-0.7"#]), Some(JsonNumber(-0.7).into()));
+		assert_eq!(Json::parse(&[r#"100"#]), Some(JsonNumber(100.).into()));
+	}
+
+	#[test]
+	fn number_not_equal() {
+		assert_ne!(Json::parse(&[r#"hello"#]), Some(JsonNumber(10.5).into()));
+	}
+
+	#[test]
+	fn bool_equal() {
+		assert_eq!(Json::parse(&[r#"true"#]), Some(JsonBool(true).into()));
+		assert_eq!(Json::parse(&[r#"false"#]), Some(JsonBool(false).into()));
+	}
+
+	#[test]
+	fn null_equal() {
+		assert_eq!(Json::parse(&[r#"null"#]), Some(JsonNull.into()));
 	}
 }

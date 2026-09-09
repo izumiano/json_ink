@@ -7,6 +7,7 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
+#[derive(PartialEq)]
 pub struct JsonNumber(pub f64);
 
 impl Debug for JsonNumber {
@@ -29,15 +30,19 @@ impl JsonNumber {
 		let mut negative = false;
 		let mut dot_index: Option<i32> = None;
 
+		trace!(char);
+
 		if char == '-' {
+			trace!("is number");
+			trace!("number is negative");
 			negative = true;
 		} else if char == '.' {
-			dot_index = Some(0);
+			trace!("is number");
+			trace!("first number char was dot");
+			dot_index = Some(-1);
 		} else if !JsonNumber::is_valid_char(char) {
 			return None;
 		}
-
-		trace!("is number");
 
 		let mut val = 0.;
 
@@ -49,6 +54,7 @@ impl JsonNumber {
 
 		for (index, c) in sr.enumerate() {
 			let char = c.char as char;
+			trace!(char, index);
 			if !JsonNumber::is_valid_char(char) {
 				match char {
 					'}' | ']' | ',' => sr.curr_index -= 1,
@@ -98,5 +104,11 @@ impl JsonNumber {
 		Some(JsonValue::Number(JsonNumber(
 			val * (negative as i64 as f64 * -2. + 1.),
 		)))
+	}
+}
+
+impl<'a> From<JsonNumber> for JsonValue<'a> {
+	fn from(value: JsonNumber) -> Self {
+		JsonValue::Number(value)
 	}
 }

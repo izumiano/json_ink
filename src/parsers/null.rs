@@ -7,6 +7,7 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
+#[derive(PartialEq)]
 pub struct JsonNull;
 
 impl Debug for JsonNull {
@@ -38,5 +39,11 @@ impl JsonNull {
 		};
 
 		None
+	}
+}
+
+impl<'a> From<JsonNull> for JsonValue<'a> {
+	fn from(value: JsonNull) -> Self {
+		JsonValue::Null(value)
 	}
 }

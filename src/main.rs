@@ -8,8 +8,27 @@ use crate::parsers::Json;
 fn main() {
 	// let json_str = "{\"hello\": 10}";
 	// let json_str = "{";
-	let json_str = "[{\"hello\": 10.5, \"second\": [\"two\", true, false, {\"thing\": null}]}]";
+	// let json_str = "[{\"hello\": 10.5, \"second\": [\"two\", true, false, {\"thing\": null}]}]";
+
+	let json_str = r#"
+	[
+		{
+			"prop": "str",
+			"val": 10,
+		},
+		-5.3,
+		-.2,
+		.9,
+		[
+			{
+				"val": null
+			}
+		],
+		15.3,
+	]
+	"#;
 	json_str.log();
+
 	match Json::parse(&[json_str]) {
 		Some(val) => {
 			val.dbg();

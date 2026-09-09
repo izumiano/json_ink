@@ -3,6 +3,8 @@ use std::{
 	ops::Range,
 };
 
+use logging::trace;
+
 pub struct CharWithIndex {
 	pub index: usize,
 	pub char: u8,
@@ -45,7 +47,7 @@ impl<'a> StringReader<'a> {
 
 		self.curr_index += 1;
 
-		// trace!(format!("Next = '{}'", self.bytes[curr_index] as char));
+		trace!(format!("Next = '{}'", self.bytes[curr_index] as char));
 
 		Some(CharWithIndex {
 			index: curr_index,
@@ -69,19 +71,25 @@ impl<'a> StringReader<'a> {
 	}
 
 	pub fn str_compare(&self, str: &str) -> (bool, usize) {
+		trace!(format!("str_compare [{}]", str));
+
 		let len = self.bytes.len();
 
 		let str = str.as_bytes();
-		if self.curr_index + str.len() >= len {
+		if self.curr_index + str.len() > len {
+			trace!("str_compare out of bounds", self.curr_index, str.len(), len);
+			trace!("str_compare -> false");
 			return (false, 0);
 		}
 
 		for (str_index, str_c) in str.iter().enumerate() {
 			if self.bytes[self.curr_index + str_index] != *str_c {
+				trace!("str_compare -> false");
 				return (false, 0);
 			}
 		}
 
+		trace!("str_compare -> true");
 		(true, str.len())
 	}
 
@@ -94,10 +102,12 @@ impl<'a> StringReader<'a> {
 	}
 
 	pub fn goto_safe(&mut self) {
+		self.skip_whitespace();
+
 		while let Some(c) = self.next() {
 			let char = c.char as char;
 
-			self.skip_whitespace();
+			trace!("goto_safe", c);
 
 			match char {
 				'}' | ']' => {
@@ -105,9 +115,12 @@ impl<'a> StringReader<'a> {
 					break;
 				}
 				',' => {
+					self.skip_whitespace();
 					break;
 				}
-				_ => {}
+				_ => {
+					self.skip_whitespace();
+				}
 			}
 		}
 	}

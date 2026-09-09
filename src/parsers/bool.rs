@@ -7,6 +7,7 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
+#[derive(PartialEq)]
 pub struct JsonBool(pub bool);
 
 impl Debug for JsonBool {
@@ -45,5 +46,11 @@ impl JsonBool {
 		};
 
 		None
+	}
+}
+
+impl<'a> From<JsonBool> for JsonValue<'a> {
+	fn from(value: JsonBool) -> Self {
+		JsonValue::Bool(value)
 	}
 }

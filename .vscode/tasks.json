@@ -60,6 +60,15 @@
 				"kind": "build",
 				"isDefault": false
 			}
+		},
+		{
+			"type": "shell",
+			"command": "cargo test",
+			"label": "run tests",
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
 		}
 	]
 }
