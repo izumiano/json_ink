@@ -3,12 +3,15 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
-	parsers::JsonValue,
-	string_reader::{CharWithIndex, StringReader},
+	parsers::{JsonParsable, JsonValue},
+	string_reader::{CharWithIndex, StrCompareIsMatch, StringReader},
 };
 
 #[derive(PartialEq)]
 pub struct JsonNull;
+
+#[derive(PartialEq, Debug)]
+pub struct IncJsonNull(usize);
 
 impl Debug for JsonNull {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,20 +33,41 @@ impl JsonNull {
 
 		sr.curr_index -= 1;
 
-		match sr.str_compare("null") {
-			(true, count) => {
-				sr.curr_index += count;
-				return Some(JsonValue::Null(JsonNull));
-			}
-			(false, _) => {}
-		};
+		Some(IncJsonNull(0).parse(sr))
+	}
+}
 
-		None
+impl<'a> JsonParsable<'a> for IncJsonNull {
+	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
+		match sr.str_compare("null") {
+			StrCompareIsMatch::True(count) => {
+				sr.curr_index += count;
+
+				let total_count = self.0 + count;
+				let val = IncJsonNull(total_count);
+				if total_count >= "null".len() {
+					return val.finish();
+				}
+
+				return val.into();
+			}
+			StrCompareIsMatch::False => todo!(),
+		};
+	}
+
+	fn finish(self) -> JsonValue<'a> {
+		JsonNull.into()
 	}
 }
 
 impl<'a> From<JsonNull> for JsonValue<'a> {
 	fn from(value: JsonNull) -> Self {
 		JsonValue::Null(value)
+	}
+}
+
+impl<'a> From<IncJsonNull> for JsonValue<'a> {
+	fn from(value: IncJsonNull) -> Self {
+		JsonValue::IncNull(value)
 	}
 }

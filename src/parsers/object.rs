@@ -3,12 +3,15 @@ use std::{collections::HashMap, fmt::Debug};
 use logging::*;
 
 use crate::{
-	parsers::JsonValue,
+	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
 
 #[derive(PartialEq)]
 pub struct JsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
+
+#[derive(PartialEq, Debug)]
+pub struct IncJsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
 
 impl<'a> Debug for JsonObject<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -17,13 +20,13 @@ impl<'a> Debug for JsonObject<'a> {
 }
 
 impl<'a> JsonObject<'a> {
-	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> JsonObject<'a> {
+	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> Self {
 		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
 		for (key, val) in vals {
 			map.insert(key.to_string(), val);
 		}
 
-		JsonObject(map)
+		Self(map)
 	}
 
 	pub fn try_start_parse(
@@ -36,23 +39,27 @@ impl<'a> JsonObject<'a> {
 
 		trace!("is object");
 
-		let mut val = JsonObject(HashMap::new());
+		let val = IncJsonObject(HashMap::new());
 
-		val.parse(sr);
+		let val = val.parse(sr);
 
-		return Some(JsonValue::Object(val));
+		debug_assert!(matches!(
+			val,
+			JsonValue::Object(_) | JsonValue::IncObject(_)
+		));
+
+		return Some(val);
 	}
 }
 
-impl<'a> JsonObject<'a> {
-	fn parse(&mut self, sr: &mut StringReader) {
+impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
+	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
 		while let Some(c) = sr.peek() {
 			trace!("object::parse", c);
 
 			if c.char == '}' as u8 {
-				trace!("Finish object");
 				sr.next();
-				return;
+				return self.finish();
 			}
 
 			let Some((key, value)) = self.parse_property(sr) else {
@@ -65,8 +72,17 @@ impl<'a> JsonObject<'a> {
 			self.0.insert(key, value);
 			sr.goto_safe();
 		}
+
+		self.into()
 	}
 
+	fn finish(self) -> JsonValue<'a> {
+		trace!("Finish object");
+		JsonObject(self.0).into()
+	}
+}
+
+impl<'a> IncJsonObject<'a> {
 	fn parse_property(&self, sr: &mut StringReader) -> Option<(String, JsonValue<'a>)> {
 		trace!("parse property");
 		sr.skip_whitespace();
@@ -111,5 +127,11 @@ impl<'a> JsonObject<'a> {
 impl<'a> From<JsonObject<'a>> for JsonValue<'a> {
 	fn from(value: JsonObject<'a>) -> Self {
 		JsonValue::Object(value)
+	}
+}
+
+impl<'a> From<IncJsonObject<'a>> for JsonValue<'a> {
+	fn from(value: IncJsonObject<'a>) -> Self {
+		JsonValue::IncObject(value)
 	}
 }

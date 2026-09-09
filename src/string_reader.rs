@@ -28,6 +28,11 @@ pub struct StringReader<'a> {
 	pub curr_index: usize,
 }
 
+pub(crate) enum StrCompareIsMatch {
+	True(usize),
+	False,
+}
+
 impl<'a> StringReader<'a> {
 	pub fn new(str: &'a str) -> Self {
 		Self {
@@ -70,27 +75,28 @@ impl<'a> StringReader<'a> {
 		})
 	}
 
-	pub fn str_compare(&self, str: &str) -> (bool, usize) {
+	pub fn str_compare(&self, str: &str) -> StrCompareIsMatch {
 		trace!(format!("str_compare [{}]", str));
 
-		let len = self.bytes.len();
+		let bytes_len = self.bytes.len();
 
 		let str = str.as_bytes();
-		if self.curr_index + str.len() > len {
-			trace!("str_compare out of bounds", self.curr_index, str.len(), len);
-			trace!("str_compare -> false");
-			return (false, 0);
-		}
+		let str_len = str.len().min(bytes_len - self.curr_index);
+		// if self.curr_index + str_len > bytes_len {
+		// 	trace!("str_compare out of bounds", self.curr_index, str_len, len);
 
-		for (str_index, str_c) in str.iter().enumerate() {
-			if self.bytes[self.curr_index + str_index] != *str_c {
+		// 	str_len = ;
+		// }
+
+		for i in 0..str_len {
+			if self.bytes[self.curr_index + i] != str[i] {
 				trace!("str_compare -> false");
-				return (false, 0);
+				return StrCompareIsMatch::False;
 			}
 		}
 
-		trace!("str_compare -> true");
-		(true, str.len())
+		trace!(format!("str_compare -> true ({})", str_len));
+		StrCompareIsMatch::True(str_len)
 	}
 
 	pub fn skip_whitespace(&mut self) {
@@ -99,6 +105,12 @@ impl<'a> StringReader<'a> {
 		{
 			self.curr_index += 1;
 		}
+	}
+
+	pub fn goto_after(&mut self, char: char) {
+		while let Some(c) = self.next()
+			&& c.char != char as u8
+		{}
 	}
 
 	pub fn goto_safe(&mut self) {

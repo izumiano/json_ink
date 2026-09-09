@@ -3,12 +3,19 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
-	parsers::JsonValue,
+	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
 
 #[derive(PartialEq)]
 pub struct JsonNumber(pub f64);
+
+#[derive(PartialEq, Debug)]
+pub struct IncJsonNumber {
+	pub val: f64,
+	pub is_negative: bool,
+	pub dot_index: Option<i32>,
+}
 
 impl Debug for JsonNumber {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -44,20 +51,37 @@ impl JsonNumber {
 			return None;
 		}
 
-		let mut val = 0.;
-
-		let mut invalid = false;
-
 		if !negative && dot_index.is_none() {
 			sr.curr_index -= 1;
 		}
+
+		let val = IncJsonNumber {
+			val: 0.,
+			is_negative: negative,
+			dot_index,
+		};
+
+		Some(val.parse(sr))
+	}
+}
+
+impl<'a> JsonParsable<'a> for IncJsonNumber {
+	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
+		let mut val = self.val;
+		let mut dot_index = self.dot_index;
+
+		let mut invalid = false;
 
 		for (index, c) in sr.enumerate() {
 			let char = c.char as char;
 			trace!(char, index);
 			if !JsonNumber::is_valid_char(char) {
 				match char {
-					'}' | ']' | ',' => sr.curr_index -= 1,
+					'}' | ']' | ',' => {
+						sr.curr_index -= 1;
+						self.val = val;
+						return self.finish();
+					}
 					_ => invalid = true,
 				}
 				trace!("invalid digit", char);
@@ -98,17 +122,30 @@ impl JsonNumber {
 
 		if invalid {
 			log_warn!("Failed parsing number");
-			return None;
+			self.val = f64::NAN;
+			return self.finish();
 		}
 
-		Some(JsonValue::Number(JsonNumber(
-			val * (negative as i64 as f64 * -2. + 1.),
-		)))
+		self.val = val;
+
+		self.into()
+	}
+
+	fn finish(self) -> JsonValue<'a> {
+		trace!("Finish number");
+
+		JsonNumber(self.val * (self.is_negative as i64 as f64 * -2. + 1.)).into()
 	}
 }
 
 impl<'a> From<JsonNumber> for JsonValue<'a> {
 	fn from(value: JsonNumber) -> Self {
 		JsonValue::Number(value)
+	}
+}
+
+impl<'a> From<IncJsonNumber> for JsonValue<'a> {
+	fn from(value: IncJsonNumber) -> Self {
+		JsonValue::IncNumber(value)
 	}
 }

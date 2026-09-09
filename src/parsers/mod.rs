@@ -4,8 +4,12 @@ use logging::*;
 
 use crate::{
 	parsers::{
-		array::JsonArray, bool::JsonBool, null::JsonNull, number::JsonNumber, object::JsonObject,
-		string::JsonString,
+		array::{IncJsonArray, JsonArray},
+		bool::{IncJsonBool, JsonBool},
+		null::{IncJsonNull, JsonNull},
+		number::{IncJsonNumber, JsonNumber},
+		object::{IncJsonObject, JsonObject},
+		string::{IncJsonString, JsonString},
 	},
 	string_reader::StringReader,
 };
@@ -38,14 +42,27 @@ impl Json {
 	}
 }
 
+pub trait JsonParsable<'a> {
+	fn parse(self, sr: &mut StringReader) -> JsonValue<'a>;
+	fn finish(self) -> JsonValue<'a>;
+}
+
 #[derive(PartialEq)]
 pub enum JsonValue<'a> {
+	IncObject(IncJsonObject<'a>),
+	IncArray(IncJsonArray<'a>),
+	IncString(IncJsonString),
+	IncNumber(IncJsonNumber),
+	IncBool(IncJsonBool),
+	IncNull(IncJsonNull),
+
 	Object(JsonObject<'a>),
 	Array(JsonArray<'a>),
 	String(JsonString),
 	Number(JsonNumber),
 	Bool(JsonBool),
 	Null(JsonNull),
+
 	Unset,
 }
 
@@ -83,12 +100,20 @@ impl<'a> JsonValue<'a> {
 impl<'a> Debug for JsonValue<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
+			Self::IncObject(arg0) => f.debug_tuple("IncObject").field(arg0).finish(),
+			Self::IncArray(arg0) => f.debug_tuple("IncArray").field(arg0).finish(),
+			Self::IncString(arg0) => f.debug_tuple("IncString").field(arg0).finish(),
+			Self::IncNumber(arg0) => f.debug_tuple("IncNumber").field(arg0).finish(),
+			Self::IncBool(arg0) => f.debug_tuple("IncBool").field(arg0).finish(),
+			Self::IncNull(arg0) => f.debug_tuple("IncNull").field(arg0).finish(),
+
 			Self::Object(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Array(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::String(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Number(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Bool(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Null(arg0) => write!(f, "{:#?}", arg0),
+
 			Self::Unset => write!(f, "Unset"),
 		}
 	}
@@ -243,12 +268,34 @@ mod tests {
 
 	#[test]
 	fn number_equal() {
-		assert_eq!(Json::parse(&[r#"10.5"#]), Some(JsonNumber(10.5).into()));
-		assert_eq!(Json::parse(&[r#".5"#]), Some(JsonNumber(0.5).into()));
-		assert_eq!(Json::parse(&[r#"-.5"#]), Some(JsonNumber(-0.5).into()));
-		assert_eq!(Json::parse(&[r#"0.3"#]), Some(JsonNumber(0.3).into()));
-		assert_eq!(Json::parse(&[r#"-0.7"#]), Some(JsonNumber(-0.7).into()));
-		assert_eq!(Json::parse(&[r#"100"#]), Some(JsonNumber(100.).into()));
+		assert_eq!(
+			Json::parse(&[r#"10.5"#]),
+			Some(
+				IncJsonNumber {
+					val: 10.5,
+					is_negative: false,
+					dot_index: None
+				}
+				.into()
+			)
+		);
+		assert_eq!(
+			Json::parse(&[r#".5"#]),
+			Some(
+				IncJsonNumber {
+					val: 0.5,
+					is_negative: false,
+					dot_index: Some(-1)
+				}
+				.into()
+			)
+		);
+		assert_eq!(Json::parse(&[r#"10.5,"#]), Some(JsonNumber(10.5).into()));
+		assert_eq!(Json::parse(&[r#".5}"#]), Some(JsonNumber(0.5).into()));
+		assert_eq!(Json::parse(&[r#"-.5]"#]), Some(JsonNumber(-0.5).into()));
+		assert_eq!(Json::parse(&[r#"0.3,"#]), Some(JsonNumber(0.3).into()));
+		assert_eq!(Json::parse(&[r#"-0.7}"#]), Some(JsonNumber(-0.7).into()));
+		assert_eq!(Json::parse(&[r#"100]"#]), Some(JsonNumber(100.).into()));
 	}
 
 	#[test]
