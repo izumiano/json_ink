@@ -250,6 +250,35 @@ mod tests {
 			),
 			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
 		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					"❤️": false,
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("❤️", JsonBool(false).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					"prop": "❤️",
+					"prop2": null
+				}
+			"#
+			),
+			Some(
+				JsonObject::new(vec![
+					("prop", JsonString("❤️".into()).into()),
+					("prop2", JsonNull.into())
+				])
+				.into()
+			)
+		);
 	}
 
 	#[test]
@@ -327,6 +356,11 @@ mod tests {
 				.into()
 			)
 		);
+
+		assert_eq!(
+			JsonInk::parse(r#"["❤️"]"#),
+			Some(JsonArray::new(vec![JsonString("❤️".into()).into()]).into())
+		)
 	}
 
 	#[test]
@@ -334,7 +368,12 @@ mod tests {
 		assert_eq!(
 			JsonInk::parse(r#""str""#),
 			Some(JsonString("str".into()).into())
-		)
+		);
+
+		assert_eq!(
+			JsonInk::parse(r#""❤️""#),
+			Some(JsonString("❤️".into()).into())
+		);
 	}
 
 	#[test]
