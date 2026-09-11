@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
+	json_reader::JsonReader,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -53,7 +54,7 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
 		let start_index = sr.curr_index;
 
-		let str = if let Some(string_end) = sr.find(|c| c.char == '"' as u8) {
+		let str = if let Some(string_end) = sr.find_quote() {
 			let str = sr.get_str(start_index..string_end.index).unwrap();
 			self.combine_strings(str).finish()
 		} else {

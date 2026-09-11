@@ -86,31 +86,43 @@ impl<'a> JsonValue<'a> {
 		match value {
 			JsonValue::IncObject(object) => {
 				trace!(" -> object");
-				return Some(object.parse(sr));
+				let val = Some(object.parse(sr));
+				trace!("end continue_parse for 'object'");
+				val
 			}
 			JsonValue::IncArray(array) => {
 				trace!(" -> array");
-				return Some(array.parse(sr));
+				let val = Some(array.parse(sr));
+				trace!("end continue_parse for 'array' ");
+				val
 			}
 			JsonValue::IncString(string) => {
 				trace!(" -> string");
-				return Some(string.parse(sr));
+				let val = Some(string.parse(sr));
+				trace!("end continue_parse for 'string'");
+				val
 			}
 			JsonValue::IncNumber(number) => {
 				trace!(" -> number");
-				return Some(number.parse(sr));
+				let val = Some(number.parse(sr));
+				trace!("end continue_parse for 'number'");
+				val
 			}
 			JsonValue::IncBool(bool) => {
 				trace!(" -> bool");
-				return Some(bool.parse(sr));
+				let val = Some(bool.parse(sr));
+				trace!("end continue_parse for 'bool'");
+				val
 			}
 			JsonValue::IncNull(null) => {
 				trace!(" -> null");
-				return Some(null.parse(sr));
+				let val = Some(null.parse(sr));
+				trace!("end continue_parse for 'null'");
+				val
 			}
 			_ => {
 				trace!(" -> none");
-				return Some(value);
+				Some(value)
 			}
 		}
 	}
@@ -148,6 +160,7 @@ impl<'a> JsonValue<'a> {
 		try_start_parse!(JsonNull, curr_value, sr, first_char);
 
 		log_warn!("could not parse to any type");
+		// panic!("could not parse to any type");
 
 		None
 	}
@@ -380,6 +393,17 @@ mod tests {
 				.into()
 			)
 		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					"prop\"": true,
+				}
+				"#
+			),
+			Some(JsonObject::new(vec![(r#"prop\""#, JsonBool(true).into())]).into())
+		);
 	}
 
 	#[test]
@@ -512,6 +536,11 @@ mod tests {
 			JsonInk::parse(r#""❤️""#),
 			Some(JsonString("❤️".into()).into())
 		);
+
+		assert_eq!(
+			JsonInk::parse(r#""hello\"""#),
+			Some(JsonString(r#"hello\""#.into()).into())
+		)
 	}
 
 	#[test]
@@ -773,6 +802,15 @@ mod tests {
 			)])
 			.into()
 		);
+
+		assert_split_eq!(
+			["{prop: 10.5", ",prop2: 2}"],
+			JsonObject::new(vec![
+				("prop", JsonNumber(10.5).into()),
+				("prop2", JsonNumber(2.).into())
+			])
+			.into()
+		);
 	}
 
 	#[test]
@@ -781,6 +819,15 @@ mod tests {
 		assert_split_eq!(
 			["[", r#""he"#, "lllllloooo", r#"oo"]"#],
 			JsonArray::new(vec![JsonString("helllllloooooo".to_string()).into()]).into()
+		);
+
+		assert_split_eq!(
+			["[10,", "[{", "}\n]", "]"],
+			JsonArray::new(vec![
+				JsonNumber(10.).into(),
+				JsonArray::new(vec![JsonObject::new(vec![]).into()]).into()
+			])
+			.into()
 		);
 	}
 

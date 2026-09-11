@@ -3,6 +3,7 @@
 pub trait JsonReader {
 	fn goto_safe(&mut self);
 	fn next_is_separator(&self) -> bool;
+	fn find_quote(&mut self) -> Option<CharWithIndex>;
 }
 
 impl<'a> JsonReader for StringReader<'a> {
@@ -42,6 +43,23 @@ impl<'a> JsonReader for StringReader<'a> {
 		trace!(format!("-> {ret}"));
 
 		ret
+	}
+
+	fn find_quote(&mut self) -> Option<CharWithIndex> {
+		let mut quote = None;
+		while let Some(c) = self.find(|c| c.char == '"' as u8) {
+			if let Some(prev_c) = self.previous() {
+				if prev_c.char == '\\' as u8 {
+					trace!("found escaped quote");
+					continue;
+				}
+			}
+
+			quote = Some(c);
+			break;
+		}
+
+		quote
 	}
 }
 
@@ -93,4 +111,4 @@ macro_rules! thing {
 use logging::trace;
 pub(crate) use thing;
 
-use crate::string_reader::StringReader;
+use crate::string_reader::{CharWithIndex, StringReader};

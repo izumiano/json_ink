@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use logging::*;
 
 use crate::{
+	json_reader::JsonReader,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -179,7 +180,7 @@ impl<'a> IncJsonObject<'a> {
 		quoted: bool,
 	) -> Option<(PropertyKey, bool)> {
 		let prop_end = if quoted {
-			let Some(property_name_end) = sr.find(|c| c.char == '"' as u8) else {
+			let Some(property_name_end) = sr.find_quote() else {
 				trace!("Failed finding '\"'");
 				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
 					return Some((

@@ -75,6 +75,17 @@ impl<'a> StringReader<'a> {
 		})
 	}
 
+	pub fn previous(&self) -> Option<CharWithIndex> {
+		if self.curr_index < 2 || self.curr_index - 2 >= self.bytes.len() {
+			return None;
+		}
+
+		Some(CharWithIndex {
+			index: self.curr_index - 2,
+			char: { self.bytes[self.curr_index - 2] },
+		})
+	}
+
 	pub fn str_compare(&self, str: &str) -> StrCompareIsMatch {
 		trace!(format!("str_compare [{}]", str));
 
