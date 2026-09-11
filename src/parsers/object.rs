@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
+use indexmap::IndexMap;
 use logging::*;
 
 use crate::{
@@ -8,11 +9,11 @@ use crate::{
 };
 
 #[derive(PartialEq)]
-pub struct JsonObject<'a>(pub HashMap<String, JsonValue<'a>>);
+pub struct JsonObject<'a>(pub IndexMap<String, JsonValue<'a>>);
 
 #[derive(PartialEq, Debug)]
 pub struct IncJsonObject<'a> {
-	map: HashMap<String, JsonValue<'a>>,
+	map: IndexMap<String, JsonValue<'a>>,
 	newest_property: Option<IncProperty<'a>>,
 }
 
@@ -53,7 +54,7 @@ impl<'a> IncJsonObject<'a> {
 		vals: Vec<(&str, JsonValue<'a>)>,
 		newest_property: Option<IncProperty<'a>>,
 	) -> Self {
-		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
+		let mut map: IndexMap<String, JsonValue<'a>> = IndexMap::new();
 		for (key, val) in vals {
 			map.insert(key.to_string(), val);
 		}
@@ -68,7 +69,7 @@ impl<'a> IncJsonObject<'a> {
 impl<'a> JsonObject<'a> {
 	#[allow(unused)]
 	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> Self {
-		let mut map: HashMap<String, JsonValue<'a>> = HashMap::new();
+		let mut map: IndexMap<String, JsonValue<'a>> = IndexMap::new();
 		for (key, val) in vals {
 			map.insert(key.to_string(), val);
 		}
@@ -87,7 +88,7 @@ impl<'a> JsonObject<'a> {
 		trace!("is object");
 
 		let val = IncJsonObject {
-			map: HashMap::new(),
+			map: IndexMap::new(),
 			newest_property: None,
 		};
 
