@@ -3,7 +3,6 @@ use std::{collections::HashMap, fmt::Debug};
 use logging::*;
 
 use crate::{
-	json_reader::JsonReader,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -26,7 +25,13 @@ enum Property<'a> {
 #[derive(PartialEq, Debug)]
 pub(crate) enum PropertyKey {
 	Complete(String),
-	Incomplete(String),
+	Incomplete(IncPropertyKey),
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) struct IncPropertyKey {
+	pub name: String,
+	pub quoted: bool,
 }
 
 #[derive(PartialEq, Debug)]
@@ -151,19 +156,40 @@ impl<'a> IncJsonObject<'a> {
 		sr: &mut StringReader,
 		first: usize,
 		first_off: usize,
+		quoted: bool,
 	) -> Option<(PropertyKey, bool)> {
-		let Some(property_name_end) = sr.find(|c| c.char == '"' as u8) else {
-			trace!("Failed finding '\"'");
-			if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
-				return Some((PropertyKey::Incomplete(name), false));
-			}
+		let prop_end = if quoted {
+			let Some(property_name_end) = sr.find(|c| c.char == '"' as u8) else {
+				trace!("Failed finding '\"'");
+				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
+					return Some((
+						PropertyKey::Incomplete(IncPropertyKey { name, quoted }),
+						false,
+					));
+				}
 
-			return None;
+				return None;
+			};
+
+			property_name_end.index
+		} else {
+			let Some(property_name_end) = sr.find(|c| c.char == ':' as u8) else {
+				trace!("Failed finding ':'");
+				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
+					return Some((
+						PropertyKey::Incomplete(IncPropertyKey { name, quoted }),
+						false,
+					));
+				}
+
+				return None;
+			};
+
+			sr.curr_index -= 1;
+			property_name_end.index
 		};
 
-		let prop_end = property_name_end;
-
-		let Ok(name) = sr.get_string((first + first_off)..prop_end.index) else {
+		let Ok(name) = sr.get_string((first + first_off)..prop_end) else {
 			return None;
 		};
 
@@ -186,12 +212,12 @@ impl<'a> IncJsonObject<'a> {
 			trace!("parse_property -> continuation", property);
 
 			match property.key {
-				PropertyKey::Incomplete(orig_name) => {
+				PropertyKey::Incomplete(mut orig_prop) => {
 					let start_index = sr.curr_index;
 
-					let Some(key) = self.parse_key(sr, start_index, 0) else {
+					let Some(key) = self.parse_key(sr, start_index, 0, orig_prop.quoted) else {
 						return Some(Property::Incomplete(IncProperty {
-							key: PropertyKey::Incomplete(orig_name),
+							key: PropertyKey::Incomplete(orig_prop),
 							value: property.value,
 							found_colon: property.found_colon,
 						}));
@@ -200,11 +226,12 @@ impl<'a> IncJsonObject<'a> {
 					property_key = match key {
 						(PropertyKey::Complete(name), _found_colon) => {
 							found_colon = _found_colon;
-							PropertyKey::Complete(orig_name + &name)
+							PropertyKey::Complete(orig_prop.name + &name)
 						}
 						(PropertyKey::Incomplete(name), _found_colon) => {
 							found_colon = _found_colon;
-							PropertyKey::Incomplete(orig_name + &name)
+							orig_prop.name += &name.name;
+							PropertyKey::Incomplete(orig_prop)
 						}
 					};
 					property_value = property.value.take();
@@ -235,16 +262,16 @@ impl<'a> IncJsonObject<'a> {
 				return None;
 			};
 
-			if first.char != '"' as u8 {
-				log_warn!(format!(
-					"First character of property was not '\"', but instead '{}'",
-					first.char as char
-				));
-				sr.goto_safe();
-				return None;
-			}
+			let quoted = if first.char == '"' as u8 {
+				trace!("-> quoted");
+				true
+			} else {
+				trace!("-> unquoted");
+				false
+			};
 
-			let Some((key, _found_colon)) = self.parse_key(sr, first.index, 1) else {
+			let Some((key, _found_colon)) = self.parse_key(sr, first.index, quoted as usize, quoted)
+			else {
 				trace!("failed parsing key");
 				return None;
 			};
@@ -276,7 +303,7 @@ impl<'a> IncJsonObject<'a> {
 			Some(property_value) => Some(Property::Complete(
 				match property_key {
 					PropertyKey::Complete(name) => name,
-					PropertyKey::Incomplete(name) => name,
+					PropertyKey::Incomplete(prop) => prop.name,
 				},
 				property_value,
 			)),

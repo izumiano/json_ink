@@ -204,7 +204,7 @@ macro_rules! json_parse {
 mod tests {
 	use crate::parsers::{
 		number::DecimalPart,
-		object::{IncProperty, PropertyKey},
+		object::{IncProperty, IncPropertyKey, PropertyKey},
 	};
 
 	use super::*;
@@ -307,6 +307,82 @@ mod tests {
 	}
 
 	#[test]
+	fn object_equal_unquoted() {
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					prop: true
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					prop: true,
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("prop", JsonBool(true).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					prop: false
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					prop: false,
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("prop", JsonBool(false).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					❤️: false,
+				}
+			"#
+			),
+			Some(JsonObject::new(vec![("❤️", JsonBool(false).into())]).into())
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+				{
+					prop: "❤️",
+					prop2: null
+				}
+			"#
+			),
+			Some(
+				JsonObject::new(vec![
+					("prop", JsonString("❤️".into()).into()),
+					("prop2", JsonNull.into())
+				])
+				.into()
+			)
+		);
+	}
+
+	#[test]
 	fn object_not_equal() {
 		assert_ne!(
 			JsonInk::parse(r#"{"prop": true}"#),
@@ -359,6 +435,43 @@ mod tests {
 				[
 					{
 						"val": null
+					}
+				],
+				15.3,
+			]
+			"#
+			),
+			Some(
+				JsonArray::new(vec![
+					JsonObject::new(vec![
+						(&"prop", JsonString("str".to_string()).into()),
+						(&"val", JsonNumber(10.).into())
+					])
+					.into(),
+					JsonNumber(-5.3).into(),
+					JsonNumber(-0.2).into(),
+					JsonNumber(0.9).into(),
+					JsonArray::new(vec![JsonObject::new(vec![("val", JsonNull.into())]).into()]).into(),
+					JsonNumber(15.3).into(),
+				])
+				.into()
+			)
+		);
+
+		assert_eq!(
+			JsonInk::parse(
+				r#"
+			[
+				{
+					prop: "str",
+					val: 10,
+				},
+				-5.3,
+				-.2,
+				.9,
+				[
+					{
+						val: null
 					}
 				],
 				15.3,
@@ -582,6 +695,61 @@ mod tests {
 				r#""arr": [-.33, "str"]"#,
 				"}}",
 			],
+			JsonObject::new(vec![(
+				"some",
+				JsonObject::new(vec![(
+					"arr",
+					JsonArray::new(vec![
+						JsonNumber(-0.33).into(),
+						JsonString("str".into()).into()
+					])
+					.into()
+				)])
+				.into()
+			)])
+			.into()
+		);
+	}
+
+	#[test]
+	fn split_object_unquoted() {
+		assert_split_eq!(
+			["{", "prop", ":", "\t10", ".5,", "}"],
+			JsonObject::new(vec![("prop", JsonNumber(10.5).into())]).into()
+		);
+
+		assert_split_eq!(
+			["{prop", ":", "[", ".5,", "]}"],
+			JsonObject::new(vec![(
+				"prop",
+				JsonArray::new(vec![JsonNumber(0.5).into()]).into()
+			)])
+			.into()
+		);
+
+		assert_split_eq!(
+			["{prop", " two}"],
+			IncJsonObject::new(
+				vec![],
+				Some(IncProperty {
+					key: PropertyKey::Incomplete(IncPropertyKey {
+						name: "prop two}".to_string(),
+						quoted: false
+					},),
+					value: Box::new(None),
+					found_colon: false
+				})
+			)
+			.into()
+		);
+
+		assert_split_eq!(
+			["{", "hello", ": true}"],
+			JsonObject::new(vec![("hello", JsonBool(true).into())]).into()
+		);
+
+		assert_split_eq!(
+			["{so", "me", "", ": {", r#"arr: [-.33, "str"]"#, "}}",],
 			JsonObject::new(vec![(
 				"some",
 				JsonObject::new(vec![(
