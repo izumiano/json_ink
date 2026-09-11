@@ -12,9 +12,16 @@ pub struct JsonNumber(pub f64);
 
 #[derive(PartialEq, Debug)]
 pub struct IncJsonNumber {
-	pub val: f64,
+	pub integer_part: u64,
+	pub decimal_part: DecimalPart,
 	pub is_negative: bool,
 	pub dot_index: Option<i32>,
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) struct DecimalPart {
+	pub value: u64,
+	pub digit_count: u64,
 }
 
 impl Debug for JsonNumber {
@@ -56,7 +63,11 @@ impl JsonNumber {
 		}
 
 		let val = IncJsonNumber {
-			val: 0.,
+			integer_part: 0,
+			decimal_part: DecimalPart {
+				value: 0,
+				digit_count: 0,
+			},
 			is_negative: negative,
 			dot_index,
 		};
@@ -67,8 +78,9 @@ impl JsonNumber {
 
 impl<'a> JsonParsable<'a> for IncJsonNumber {
 	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
-		let mut val = self.val;
-		let mut dot_index = self.dot_index;
+		let integer_part = &mut self.integer_part;
+		let decimal_part = &mut self.decimal_part;
+		let dot_index = &mut self.dot_index;
 
 		let mut invalid = false;
 
@@ -79,7 +91,6 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 				match char {
 					'}' | ']' | ',' => {
 						sr.curr_index -= 1;
-						self.val = val;
 						return self.finish();
 					}
 					_ => invalid = true,
@@ -101,7 +112,7 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 					break;
 				}
 
-				dot_index = Some(index as i32);
+				*dot_index = Some(index as i32);
 				continue;
 			}
 
@@ -109,24 +120,24 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 
 			debug_assert!(digit_val < '9' as u8);
 
-			if let Some(dot_index) = dot_index {
-				val += digit_val as f64 / 10f64.powi(index as i32 - dot_index);
-				trace!("after dot", val);
+			if let Some(new_dot_index) = dot_index {
+				decimal_part.value *= 10;
+				decimal_part.value += digit_val as u64;
+				decimal_part.digit_count += 1;
+				*dot_index = Some(*new_dot_index);
+				trace!("after dot", decimal_part);
 				continue;
 			}
 
-			val *= 10.;
-			val += digit_val as f64;
-			trace!("before dot", val);
+			*integer_part *= 10;
+			*integer_part += digit_val as u64;
+			trace!("before dot", integer_part);
 		}
 
 		if invalid {
 			log_warn!("Failed parsing number");
-			self.val = f64::NAN;
-			return self.finish();
+			return JsonValue::Invalid(todo!("Error value for failed number parse")); // TODO
 		}
-
-		self.val = val;
 
 		self.into()
 	}
@@ -134,7 +145,12 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish number", self);
 
-		JsonNumber(self.val * (self.is_negative as i64 as f64 * -2. + 1.)).into()
+		let val = self.integer_part as f64
+			+ (self.decimal_part.value as f64 / 10u64.pow(self.decimal_part.digit_count as u32) as f64);
+
+		let neg_multiplier = self.is_negative as i64 as f64 * -2. + 1.;
+
+		JsonNumber(val as f64 * neg_multiplier).into()
 	}
 }
 
