@@ -28,7 +28,7 @@ pub struct StringReader<'a> {
 	pub curr_index: usize,
 }
 
-pub(crate) enum StrCompareIsMatch {
+pub enum StrCompareIsMatch {
 	True(usize),
 	False,
 }

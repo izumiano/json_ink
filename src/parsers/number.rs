@@ -12,11 +12,11 @@ pub struct JsonNumber(pub f64);
 
 #[derive(PartialEq, Debug)]
 pub struct IncJsonNumber {
-	pub integer_part: u64,
-	pub decimal_part: DecimalPart,
-	pub is_negative: bool,
-	pub dot_index: Option<i32>,
-	pub start_str_index: usize,
+	pub(crate) integer_part: u64,
+	pub(crate) decimal_part: DecimalPart,
+	pub(crate) is_negative: bool,
+	pub(crate) dot_index: Option<i32>,
+	pub(crate) start_str_index: usize,
 }
 
 #[derive(PartialEq, Debug)]

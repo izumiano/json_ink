@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub trait JsonReader {
 	fn goto_safe(&mut self);
 	fn next_is_separator(&self) -> bool;
