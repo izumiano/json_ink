@@ -102,7 +102,7 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 		while let Some(c) = sr.peek() {
 			trace!("object::parse", c);
 
-			if c.char == '}' as u8 {
+			if self.newest_property.is_none() && c.char == '}' as u8 {
 				sr.next();
 				return self.finish();
 			}

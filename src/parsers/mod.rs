@@ -175,9 +175,37 @@ impl<'a> Debug for JsonValue<'a> {
 	}
 }
 
+#[macro_export]
+macro_rules! json_parse {
+	[$($vals:literal),+ $(,)?] => {{
+		let mut parser = JsonInk::new();
+		let arr = [$($vals),+];
+		for part in arr {
+			parser.parse_part(part);
+
+			#[cfg(feature = "logging")]{
+				println!("\n----------");
+
+				let current = parser.get();
+				log_info!(part, current);
+
+				println!("----------\n");
+			}
+		}
+
+		parser.take()
+	}};
+	($val:literal) => {
+		JsonInk::parse($val)
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use crate::parsers::object::{IncProperty, PropertyKey};
+	use crate::parsers::{
+		number::DecimalPart,
+		object::{IncProperty, PropertyKey},
+	};
 
 	use super::*;
 
@@ -387,9 +415,13 @@ mod tests {
 			JsonInk::parse(r#"10.5"#),
 			Some(
 				IncJsonNumber {
-					val: 10.5,
+					integer_part: 10,
+					decimal_part: DecimalPart {
+						value: 5,
+						digit_count: 1
+					},
 					is_negative: false,
-					dot_index: None
+					dot_index: Some(2)
 				}
 				.into()
 			)
@@ -398,7 +430,11 @@ mod tests {
 			JsonInk::parse(r#".5"#),
 			Some(
 				IncJsonNumber {
-					val: 0.5,
+					integer_part: 0,
+					decimal_part: DecimalPart {
+						value: 5,
+						digit_count: 1
+					},
 					is_negative: false,
 					dot_index: Some(-1)
 				}
@@ -513,6 +549,30 @@ mod tests {
 		assert_split_eq!(
 			["{", r#""hello"#, r#"": true}"#],
 			JsonObject::new(vec![("hello", JsonBool(true).into())]).into()
+		);
+
+		assert_split_eq!(
+			[
+				r#"{"so"#,
+				"me",
+				"\"",
+				": {",
+				r#""arr": [-.33, "str"]"#,
+				"}}",
+			],
+			JsonObject::new(vec![(
+				"some",
+				JsonObject::new(vec![(
+					"arr",
+					JsonArray::new(vec![
+						JsonNumber(-0.33).into(),
+						JsonString("str".into()).into()
+					])
+					.into()
+				)])
+				.into()
+			)])
+			.into()
 		);
 	}
 
