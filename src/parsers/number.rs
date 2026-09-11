@@ -16,6 +16,7 @@ pub struct IncJsonNumber {
 	pub decimal_part: DecimalPart,
 	pub is_negative: bool,
 	pub dot_index: Option<i32>,
+	pub start_str_index: usize,
 }
 
 #[derive(PartialEq, Debug)]
@@ -58,6 +59,8 @@ impl JsonNumber {
 
 		trace!("is number");
 
+		let start_index = sr.curr_index - 1;
+
 		if !negative && dot_index.is_none() {
 			sr.curr_index -= 1;
 		}
@@ -70,6 +73,7 @@ impl JsonNumber {
 			},
 			is_negative: negative,
 			dot_index,
+			start_str_index: start_index,
 		};
 
 		Some(val.parse(sr))
@@ -136,7 +140,10 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 
 		if invalid {
 			log_warn!("Failed parsing number");
-			return JsonValue::Invalid(todo!("Error value for failed number parse")); // TODO
+			return JsonValue::Invalid(
+				sr.get_string(self.start_str_index..sr.curr_index)
+					.unwrap_or_else(|e| e.to_string()),
+			);
 		}
 
 		self.into()

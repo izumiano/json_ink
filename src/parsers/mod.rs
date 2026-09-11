@@ -210,7 +210,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn invalid() {
+	fn empty() {
 		assert_eq!(JsonInk::parse(r#""#), None);
 		assert_eq!(JsonInk::parse(r#"      "#), None);
 		assert_eq!(
@@ -421,7 +421,8 @@ mod tests {
 						digit_count: 1
 					},
 					is_negative: false,
-					dot_index: Some(2)
+					dot_index: Some(2),
+					start_str_index: 0,
 				}
 				.into()
 			)
@@ -436,7 +437,8 @@ mod tests {
 						digit_count: 1
 					},
 					is_negative: false,
-					dot_index: Some(-1)
+					dot_index: Some(-1),
+					start_str_index: 0,
 				}
 				.into()
 			)
@@ -452,7 +454,27 @@ mod tests {
 	#[test]
 	fn number_not_equal() {
 		assert_ne!(JsonInk::parse(r#"hello"#), Some(JsonNumber(10.5).into()));
-		// assert_ne!(JsonInk::parse(r#"10g"#), Some(JsonNumber(10.).into()));
+		assert_ne!(JsonInk::parse(r#"10g"#), Some(JsonNumber(10.).into()));
+	}
+
+	#[test]
+	fn number_invalid() {
+		assert_eq!(
+			JsonInk::parse(r#"10g"#),
+			Some(JsonValue::Invalid("10g".into()))
+		);
+		assert_eq!(
+			JsonInk::parse(r#"-a"#),
+			Some(JsonValue::Invalid("-a".into()))
+		);
+		assert_eq!(
+			JsonInk::parse(r#".btasf"#),
+			Some(JsonValue::Invalid(".b".into()))
+		);
+		assert_eq!(
+			JsonInk::parse(r#"10.52m"#),
+			Some(JsonValue::Invalid("10.52m".into()))
+		);
 	}
 
 	#[test]
