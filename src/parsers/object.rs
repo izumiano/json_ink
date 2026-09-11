@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use logging::*;
 
 use crate::{
+	json_reader::JsonReader,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -272,12 +273,12 @@ impl<'a> IncJsonObject<'a> {
 				value: Box::new(property_value),
 				found_colon,
 			})),
-			Some(_) => Some(Property::Complete(
+			Some(property_value) => Some(Property::Complete(
 				match property_key {
 					PropertyKey::Complete(name) => name,
 					PropertyKey::Incomplete(name) => name,
 				},
-				property_value.unwrap_or(JsonValue::Unset),
+				property_value,
 			)),
 		}
 	}

@@ -82,11 +82,6 @@ impl<'a> StringReader<'a> {
 
 		let str = str.as_bytes();
 		let str_len = str.len().min(bytes_len - self.curr_index);
-		// if self.curr_index + str_len > bytes_len {
-		// 	trace!("str_compare out of bounds", self.curr_index, str_len, len);
-
-		// 	str_len = ;
-		// }
 
 		for i in 0..str_len {
 			if self.bytes[self.curr_index + i] != str[i] {
@@ -112,30 +107,6 @@ impl<'a> StringReader<'a> {
 		while let Some(c) = self.next()
 			&& c.char != char as u8
 		{}
-	}
-
-	pub fn goto_safe(&mut self) {
-		self.skip_whitespace();
-
-		while let Some(c) = self.next() {
-			let char = c.char as char;
-
-			trace!("goto_safe", c);
-
-			match char {
-				'}' | ']' => {
-					self.curr_index -= 1;
-					break;
-				}
-				',' => {
-					self.skip_whitespace();
-					break;
-				}
-				_ => {
-					self.skip_whitespace();
-				}
-			}
-		}
 	}
 
 	pub fn get_str(&self, range: Range<usize>) -> Result<&str, std::str::Utf8Error> {

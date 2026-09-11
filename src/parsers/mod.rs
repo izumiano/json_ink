@@ -77,47 +77,42 @@ pub enum JsonValue<'a> {
 	Bool(JsonBool),
 	Null(JsonNull),
 
-	Unset,
+	Invalid(String),
 }
 
 impl<'a> JsonValue<'a> {
-	fn continue_parse(sr: &mut StringReader, value: Option<Self>) -> Option<Self> {
+	fn continue_parse(sr: &mut StringReader, value: Self) -> Option<Self> {
 		trace!("continue_parse");
-		if let Some(value) = value {
-			match value {
-				JsonValue::IncObject(object) => {
-					trace!(" -> object");
-					return Some(object.parse(sr));
-				}
-				JsonValue::IncArray(array) => {
-					trace!(" -> array");
-					return Some(array.parse(sr));
-				}
-				JsonValue::IncString(string) => {
-					trace!(" -> string");
-					return Some(string.parse(sr));
-				}
-				JsonValue::IncNumber(number) => {
-					trace!(" -> number");
-					return Some(number.parse(sr));
-				}
-				JsonValue::IncBool(bool) => {
-					trace!(" -> bool");
-					return Some(bool.parse(sr));
-				}
-				JsonValue::IncNull(null) => {
-					trace!(" -> null");
-					return Some(null.parse(sr));
-				}
-				_ => {
-					trace!(" -> none");
-					return Some(value);
-				}
+		match value {
+			JsonValue::IncObject(object) => {
+				trace!(" -> object");
+				return Some(object.parse(sr));
+			}
+			JsonValue::IncArray(array) => {
+				trace!(" -> array");
+				return Some(array.parse(sr));
+			}
+			JsonValue::IncString(string) => {
+				trace!(" -> string");
+				return Some(string.parse(sr));
+			}
+			JsonValue::IncNumber(number) => {
+				trace!(" -> number");
+				return Some(number.parse(sr));
+			}
+			JsonValue::IncBool(bool) => {
+				trace!(" -> bool");
+				return Some(bool.parse(sr));
+			}
+			JsonValue::IncNull(null) => {
+				trace!(" -> null");
+				return Some(null.parse(sr));
+			}
+			_ => {
+				trace!(" -> none");
+				return Some(value);
 			}
 		}
-
-		trace!(" -> none");
-		value
 	}
 
 	fn parse(sr: &mut StringReader, value: Option<Self>) -> Option<Self> {
@@ -130,7 +125,9 @@ impl<'a> JsonValue<'a> {
 			};
 		}
 
-		if let Some(value) = Self::continue_parse(sr, value) {
+		if let Some(value) = value
+			&& let Some(value) = Self::continue_parse(sr, value)
+		{
 			return Some(value);
 		}
 
@@ -173,7 +170,7 @@ impl<'a> Debug for JsonValue<'a> {
 			Self::Bool(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Null(arg0) => write!(f, "{:#?}", arg0),
 
-			Self::Unset => write!(f, "Unset"),
+			Self::Invalid(arg0) => f.debug_tuple("Invalid").field(arg0).finish(),
 		}
 	}
 }
@@ -419,17 +416,29 @@ mod tests {
 	#[test]
 	fn number_not_equal() {
 		assert_ne!(JsonInk::parse(r#"hello"#), Some(JsonNumber(10.5).into()));
+		// assert_ne!(JsonInk::parse(r#"10g"#), Some(JsonNumber(10.).into()));
 	}
 
 	#[test]
 	fn bool_equal() {
-		assert_eq!(JsonInk::parse(r#"true"#), Some(JsonBool(true).into()));
-		assert_eq!(JsonInk::parse(r#"false"#), Some(JsonBool(false).into()));
+		assert_eq!(JsonInk::parse(r#"true,"#), Some(JsonBool(true).into()));
+		assert_eq!(JsonInk::parse(r#"false,"#), Some(JsonBool(false).into()));
+	}
+
+	#[test]
+	fn bool_not_equal() {
+		assert_ne!(JsonInk::parse(r#"true"#), Some(JsonBool(true).into()));
+		assert_ne!(JsonInk::parse(r#"false"#), Some(JsonBool(false).into()));
 	}
 
 	#[test]
 	fn null_equal() {
-		assert_eq!(JsonInk::parse(r#"null"#), Some(JsonNull.into()));
+		assert_eq!(JsonInk::parse(r#"null,"#), Some(JsonNull.into()));
+
+		assert_eq!(
+			JsonInk::parse(r#"null"#),
+			Some(JsonValue::IncNull(IncJsonNull(4)))
+		);
 	}
 
 	macro_rules! assert_split_eq {
@@ -499,6 +508,11 @@ mod tests {
 				})
 			)
 			.into()
+		);
+
+		assert_split_eq!(
+			["{", r#""hello"#, r#"": true}"#],
+			JsonObject::new(vec![("hello", JsonBool(true).into())]).into()
 		);
 	}
 

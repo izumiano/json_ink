@@ -56,7 +56,7 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 			if self.0.len() > 0 {
 				trace!("parse array child");
 				let child = self.0.swap_remove(self.0.len() - 1);
-				if let Some(new_child) = JsonValue::continue_parse(sr, Some(child)) {
+				if let Some(new_child) = JsonValue::continue_parse(sr, child) {
 					self.0.push(new_child);
 
 					let Some(_c) = sr.peek() else {

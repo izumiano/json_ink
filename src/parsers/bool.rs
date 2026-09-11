@@ -3,8 +3,9 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
+	json_reader::thing,
 	parsers::{JsonParsable, JsonValue},
-	string_reader::{CharWithIndex, StrCompareIsMatch, StringReader},
+	string_reader::{CharWithIndex, StringReader},
 };
 
 #[derive(PartialEq)]
@@ -28,15 +29,14 @@ impl JsonBool {
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
 		let val = match first_char.char as char {
-			't' => IncJsonBool::True(0),
-			'f' => IncJsonBool::False(0),
+			't' => IncJsonBool::True(1),
+			'f' => IncJsonBool::False(1),
 			_ => {
 				return None;
 			}
 		};
 
 		trace!("is bool");
-		sr.curr_index -= 1;
 
 		Some(val.parse(sr))
 	}
@@ -46,42 +46,12 @@ impl<'a> JsonParsable<'a> for IncJsonBool {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
 		match self {
 			IncJsonBool::True(orig_count) => {
-				match sr.str_compare(&"true"[orig_count..]) {
-					StrCompareIsMatch::True(count) => {
-						sr.curr_index += count;
-
-						let total_count = orig_count + count;
-						let val = IncJsonBool::True(total_count);
-						if total_count >= "true".len() {
-							return val.finish();
-						}
-
-						return val.into();
-					}
-					StrCompareIsMatch::False => {
-						log_warn!("Invalid bool");
-						return JsonValue::Unset;
-					}
-				};
+				// finish_if_complete!(self, sr, "true", orig_count);
+				thing!(self, IncJsonBool::True, sr, "true", orig_count)
 			}
 			IncJsonBool::False(orig_count) => {
-				match sr.str_compare(&"false"[orig_count..]) {
-					StrCompareIsMatch::True(count) => {
-						sr.curr_index += count;
-
-						let total_count = orig_count + count;
-						let val = IncJsonBool::False(total_count);
-						if total_count >= "false".len() {
-							return val.finish();
-						}
-
-						return val.into();
-					}
-					StrCompareIsMatch::False => {
-						log_warn!("Invalid bool");
-						return JsonValue::Unset;
-					}
-				};
+				// finish_if_complete!(self, sr, "false", orig_count);
+				thing!(self, IncJsonBool::False, sr, "false", orig_count)
 			}
 		}
 	}

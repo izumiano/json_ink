@@ -1,3 +1,4 @@
+mod json_reader;
 mod parsers;
 mod string_reader;
 
