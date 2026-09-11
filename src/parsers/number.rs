@@ -97,6 +97,9 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 						sr.curr_index -= 1;
 						return self.finish();
 					}
+					'\n' | '\r' => {
+						return self.finish();
+					}
 					_ => invalid = true,
 				}
 				trace!("invalid digit", char);
