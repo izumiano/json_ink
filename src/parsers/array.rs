@@ -59,6 +59,8 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 				if let Some(new_child) = JsonValue::continue_parse(sr, child) {
 					self.0.push(new_child);
 
+					sr.skip_whitespace();
+
 					let Some(_c) = sr.peek() else {
 						trace!("Array unfinished");
 						return self.into();
@@ -66,6 +68,7 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 
 					c = _c;
 				}
+				trace!("after parse array child", c);
 			}
 
 			if c.char == ']' as u8 {
