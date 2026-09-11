@@ -709,6 +709,15 @@ mod tests {
 			)])
 			.into()
 		);
+
+		assert_split_eq!(
+			[r#"{"prop": "val""#, r#","str": "val2"}"#],
+			JsonObject::new(vec![
+				("prop", JsonString("val".into()).into()),
+				("str", JsonString("val2".into()).into())
+			])
+			.into()
+		);
 	}
 
 	#[test]

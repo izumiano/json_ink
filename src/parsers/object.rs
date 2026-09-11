@@ -120,6 +120,12 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 			match property {
 				Property::Complete(key, value) => {
 					trace!(format!("new property | \"{key}\": {value:#?}"));
+
+					#[cfg(debug_assertions)]
+					if matches!(key.chars().nth(0), Some('"' | ',')) {
+						panic!("first character in key was ','");
+					}
+
 					self.map.insert(key, value);
 					sr.skip_whitespace();
 
@@ -132,6 +138,19 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 				}
 				Property::Incomplete(prop) => {
 					trace!(format!("new inc property | {prop:#?}"));
+
+					#[cfg(debug_assertions)]
+					{
+						let key = match &prop.key {
+							PropertyKey::Complete(name) => name,
+							PropertyKey::Incomplete(inc_property_key) => &inc_property_key.name,
+						};
+
+						if matches!(key.chars().nth(0), Some('"' | ',')) {
+							panic!("first character in key was ','");
+						}
+					}
+
 					self.newest_property = Some(prop);
 				}
 			}
@@ -205,6 +224,13 @@ impl<'a> IncJsonObject<'a> {
 
 	fn parse_property(&mut self, sr: &mut StringReader) -> Option<Property<'a>> {
 		trace!("parse property");
+
+		if self.newest_property.is_none()
+			&& let Some(c) = sr.peek()
+			&& c.char == ',' as u8
+		{
+			sr.next();
+		}
 
 		let property_key;
 		let mut property_value = None;
