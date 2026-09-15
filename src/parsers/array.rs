@@ -21,7 +21,7 @@ impl<'a> Debug for JsonArray<'a> {
 
 impl<'a> JsonArray<'a> {
 	#[allow(unused)]
-	pub(crate) fn new(arr: Vec<JsonValue<'a>>) -> Self {
+	pub fn new(arr: Vec<JsonValue<'a>>) -> Self {
 		Self(arr, PhantomData::default())
 	}
 
@@ -40,6 +40,10 @@ impl<'a> JsonArray<'a> {
 		let val = val.parse(sr);
 
 		return Some(val);
+	}
+
+	pub fn take_children(self) -> Vec<JsonValue<'a>> {
+		self.0
 	}
 }
 

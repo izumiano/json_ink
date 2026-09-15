@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(PartialEq)]
-pub struct JsonObject<'a>(pub IndexMap<String, JsonValue<'a>>);
+pub struct JsonObject<'a>(pub(crate) IndexMap<String, JsonValue<'a>>);
 
 #[derive(PartialEq, Debug)]
 pub struct IncJsonObject<'a> {
@@ -25,19 +25,19 @@ enum Property<'a> {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) enum PropertyKey {
+pub enum PropertyKey {
 	Complete(String),
 	Incomplete(IncPropertyKey),
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct IncPropertyKey {
+pub struct IncPropertyKey {
 	pub name: String,
 	pub quoted: bool,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct IncProperty<'a> {
+pub struct IncProperty<'a> {
 	pub key: PropertyKey,
 	pub value: Box<Option<JsonValue<'a>>>,
 	pub found_colon: bool,
@@ -51,10 +51,7 @@ impl<'a> Debug for JsonObject<'a> {
 
 impl<'a> IncJsonObject<'a> {
 	#[allow(unused)]
-	pub(crate) fn new(
-		vals: Vec<(&str, JsonValue<'a>)>,
-		newest_property: Option<IncProperty<'a>>,
-	) -> Self {
+	pub fn new(vals: Vec<(&str, JsonValue<'a>)>, newest_property: Option<IncProperty<'a>>) -> Self {
 		let mut map: IndexMap<String, JsonValue<'a>> = IndexMap::new();
 		for (key, val) in vals {
 			map.insert(key.to_string(), val);
@@ -69,7 +66,7 @@ impl<'a> IncJsonObject<'a> {
 
 impl<'a> JsonObject<'a> {
 	#[allow(unused)]
-	pub(crate) fn new(vals: Vec<(&str, JsonValue<'a>)>) -> Self {
+	pub fn new(vals: Vec<(&str, JsonValue<'a>)>) -> Self {
 		let mut map: IndexMap<String, JsonValue<'a>> = IndexMap::new();
 		for (key, val) in vals {
 			map.insert(key.to_string(), val);
@@ -101,6 +98,10 @@ impl<'a> JsonObject<'a> {
 		));
 
 		return Some(val);
+	}
+
+	pub fn take_properties(self) -> IndexMap<String, JsonValue<'a>> {
+		self.0
 	}
 }
 
