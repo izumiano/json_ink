@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
+	as_bytes::AsBytes,
 	parsers::{
 		array::{IncJsonArray, JsonArray},
 		bool::{IncJsonBool, JsonBool},
@@ -29,15 +30,15 @@ impl<'a> JsonInk<'a> {
 	}
 
 	#[allow(unused)]
-	pub fn parse(str: &'a str) -> Option<JsonValue<'a>> {
+	pub fn parse(data: &'a impl AsBytes) -> Option<JsonValue<'a>> {
 		let mut instance = Self::new();
-		instance.parse_part(str);
+		instance.parse_part(data);
 		instance.0.take()
 	}
 
-	pub fn parse_part<'b>(&mut self, str: &'b str) -> &Option<JsonValue<'a>> {
+	pub fn parse_part<'b>(&mut self, data: &'b impl AsBytes) -> &Option<JsonValue<'a>> {
 		trace!("parse");
-		let mut sr = StringReader::new(str);
+		let mut sr = StringReader::new(data);
 
 		let val = JsonValue::parse(&mut sr, self.0.take());
 
@@ -46,8 +47,8 @@ impl<'a> JsonInk<'a> {
 		&self.0
 	}
 
-	pub fn get(&self) -> &Option<JsonValue<'a>> {
-		&self.0
+	pub fn get(&mut self) -> &mut Option<JsonValue<'a>> {
+		&mut self.0
 	}
 
 	#[allow(unused)]
@@ -196,7 +197,7 @@ macro_rules! json_parse {
 		let mut parser = JsonInk::new();
 		let arr = [$($vals),+];
 		for part in arr {
-			parser.parse_part(part);
+			parser.parse_part(&part);
 
 			#[cfg(feature = "logging")]{
 				println!("\n----------");

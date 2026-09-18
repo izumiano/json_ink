@@ -5,6 +5,8 @@ use std::{
 
 use logging::trace;
 
+use crate::as_bytes::AsBytes;
+
 pub struct CharWithIndex {
 	pub index: usize,
 	pub char: u8,
@@ -34,7 +36,7 @@ pub enum StrCompareIsMatch {
 }
 
 impl<'a> StringReader<'a> {
-	pub fn new(str: &'a str) -> Self {
+	pub fn new(str: &'a impl AsBytes) -> Self {
 		Self {
 			bytes: str.as_bytes(),
 			curr_index: 0,
