@@ -191,6 +191,8 @@ impl<'a> Debug for JsonValue<'a> {
 #[macro_export]
 macro_rules! json_parse {
 	[$($vals:literal),+ $(,)?] => {{
+		use $crate::JsonInk;
+
 		let mut parser = JsonInk::new();
 		let arr = [$($vals),+];
 		for part in arr {
