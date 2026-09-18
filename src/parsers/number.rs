@@ -7,10 +7,10 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JsonNumber(pub f64);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct IncJsonNumber {
 	pub(crate) integer_part: u64,
 	pub(crate) decimal_part: DecimalPart,
@@ -19,7 +19,7 @@ pub struct IncJsonNumber {
 	pub(crate) start_str_index: usize,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub(crate) struct DecimalPart {
 	pub value: u64,
 	pub digit_count: u64,

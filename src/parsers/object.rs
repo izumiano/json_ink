@@ -9,10 +9,10 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JsonObject<'a>(pub(crate) IndexMap<String, JsonValue<'a>>);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Default, Clone)]
 pub struct IncJsonObject<'a> {
 	map: IndexMap<String, JsonValue<'a>>,
 	newest_property: Option<IncProperty<'a>>,
@@ -24,19 +24,19 @@ enum Property<'a> {
 	Incomplete(IncProperty<'a>),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum PropertyKey {
 	Complete(String),
 	Incomplete(IncPropertyKey),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct IncPropertyKey {
 	pub name: String,
 	pub quoted: bool,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct IncProperty<'a> {
 	pub key: PropertyKey,
 	pub value: Box<Option<JsonValue<'a>>>,

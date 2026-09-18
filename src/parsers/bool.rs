@@ -8,10 +8,10 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JsonBool(pub bool);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum IncJsonBool {
 	True(usize),
 	False(usize),

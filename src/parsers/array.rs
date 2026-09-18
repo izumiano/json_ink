@@ -7,10 +7,10 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JsonArray<'a>(pub Vec<JsonValue<'a>>, PhantomData<&'a u8>);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct IncJsonArray<'a>(pub Vec<JsonValue<'a>>, PhantomData<&'a u8>);
 
 impl<'a> Debug for JsonArray<'a> {

@@ -8,10 +8,10 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JsonString(pub String);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct IncJsonString(pub Option<String>);
 
 impl Debug for JsonString {

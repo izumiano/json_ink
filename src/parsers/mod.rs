@@ -62,7 +62,7 @@ pub trait JsonParsable<'a> {
 	fn finish(self) -> JsonValue<'a>;
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum JsonValue<'a> {
 	IncObject(IncJsonObject<'a>),
 	IncArray(IncJsonArray<'a>),
