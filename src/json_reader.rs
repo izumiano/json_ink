@@ -49,12 +49,12 @@ impl<'a> JsonReader for StringReader<'a> {
 
 	fn find_quote(&mut self) -> Option<CharWithIndex> {
 		let mut quote = None;
-		while let Some(c) = self.find(|c| c.char == '"' as u8) {
-			if let Some(prev_c) = self.previous() {
-				if prev_c.char == '\\' as u8 {
-					trace!("found escaped quote");
-					continue;
-				}
+		while let Some(c) = self.find(|c| c.char == b'"') {
+			if let Some(prev_c) = self.previous()
+				&& prev_c.char == b'\\'
+			{
+				trace!("found escaped quote");
+				continue;
 			}
 
 			quote = Some(c);

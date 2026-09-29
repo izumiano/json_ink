@@ -56,11 +56,7 @@ impl<'a> JsonInk<'a> {
 		if !sr.is_empty() {
 			log_warn!("extra characters after parsing");
 
-			loop {
-				let Some(val) = val.as_mut() else {
-					break;
-				};
-
+			while let Some(val) = val.as_mut() {
 				let curr = sr.next().unwrap();
 				let extra = JsonInvalid::start_parse(&mut sr, (curr.char as char).to_string());
 
@@ -219,6 +215,7 @@ impl<'a> JsonValue<'a> {
 		))
 	}
 
+	#[allow(unused)]
 	fn strip(&mut self) {
 		match self {
 			JsonValue::IncObject(v) => v.strip(),
@@ -228,16 +225,16 @@ impl<'a> JsonValue<'a> {
 	}
 
 	fn is_incomplete(&self) -> bool {
-		match self {
+		matches!(
+			self,
 			JsonValue::IncObject(_)
-			| JsonValue::IncArray(_)
-			| JsonValue::IncString(_)
-			| JsonValue::IncNumber(_)
-			| JsonValue::IncBool(_)
-			| JsonValue::IncNull(_)
-			| JsonValue::IncInvalid(_) => true,
-			_ => false,
-		}
+				| JsonValue::IncArray(_)
+				| JsonValue::IncString(_)
+				| JsonValue::IncNumber(_)
+				| JsonValue::IncBool(_)
+				| JsonValue::IncNull(_)
+				| JsonValue::IncInvalid(_)
+		)
 	}
 }
 

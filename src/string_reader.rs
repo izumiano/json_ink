@@ -99,8 +99,8 @@ impl<'a> StringReader<'a> {
 		let str = str.as_bytes();
 		let str_len = str.len().min(bytes_len - self.curr_index);
 
-		for i in 0..str_len {
-			if self.bytes[self.curr_index + i] != str[i] {
+		for (i, item) in str.iter().enumerate().take(str_len) {
+			if self.bytes[self.curr_index + i] != *item {
 				trace!("str_compare -> false");
 				return StrCompareIsMatch::False;
 			}
@@ -126,7 +126,7 @@ impl<'a> StringReader<'a> {
 	}
 
 	pub fn get_str(&self, range: Range<usize>) -> Result<&str, std::str::Utf8Error> {
-		Ok(str::from_utf8(&self.bytes[range])?)
+		str::from_utf8(&self.bytes[range])
 	}
 
 	pub fn get_string(&self, range: Range<usize>) -> Result<String, std::str::Utf8Error> {

@@ -25,7 +25,7 @@ impl JsonNull {
 		sr: &mut StringReader,
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
-		if first_char.char != 'n' as u8 {
+		if first_char.char != b'n' {
 			return None;
 		}
 

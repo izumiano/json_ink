@@ -33,7 +33,7 @@ impl Debug for JsonNumber {
 
 impl JsonNumber {
 	pub fn is_valid_char(char: char) -> bool {
-		((char as u8) >= '0' as u8 && (char as u8) <= '9' as u8) || char == '-' || char == '.'
+		((char as u8) >= b'0' && (char as u8) <= b'9') || char == '-' || char == '.'
 	}
 
 	pub fn try_start_parse<'a>(
@@ -123,9 +123,9 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 				continue;
 			}
 
-			let digit_val = c.char - '0' as u8;
+			let digit_val = c.char - b'0';
 
-			debug_assert!(digit_val < '9' as u8);
+			debug_assert!(digit_val < b'9');
 
 			if let Some(new_dot_index) = dot_index {
 				decimal_part.value *= 10;
@@ -148,8 +148,7 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 				sr,
 				sr.get_string(self.start_str_index..sr.curr_index)
 					.unwrap_or_else(|e| e.to_string()),
-			)
-			.into();
+			);
 		}
 
 		self.into()
@@ -158,18 +157,24 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish number", self);
 
-		JsonNumber(self.to_float()).into()
+		JsonNumber(self.into()).into()
 	}
 }
 
 impl IncJsonNumber {
-	pub fn to_float(self) -> f64 {
-		let val = self.integer_part as f64
-			+ (self.decimal_part.value as f64 / 10u64.pow(self.decimal_part.digit_count as u32) as f64);
+	pub fn into_f64(self) -> f64 {
+		self.into()
+	}
+}
 
-		let neg_multiplier = self.is_negative as i64 as f64 * -2. + 1.;
+impl From<IncJsonNumber> for f64 {
+	fn from(value: IncJsonNumber) -> Self {
+		let out = value.integer_part as f64
+			+ (value.decimal_part.value as f64 / 10u64.pow(value.decimal_part.digit_count as u32) as f64);
 
-		val as f64 * neg_multiplier
+		let neg_multiplier = value.is_negative as i64 as f64 * -2. + 1.;
+
+		out * neg_multiplier
 	}
 }
 

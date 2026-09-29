@@ -63,10 +63,12 @@ impl<'a> IncJsonObject<'a> {
 		}
 	}
 
+	#[allow(unused)]
 	pub fn take_properties(self) -> IndexMap<String, JsonValue<'a>> {
 		self.map
 	}
 
+	#[allow(unused)]
 	pub fn strip(&mut self) {
 		self.map = Default::default();
 
@@ -79,6 +81,7 @@ impl<'a> IncJsonObject<'a> {
 }
 
 impl<'a> IncProperty<'a> {
+	#[allow(unused)]
 	pub fn strip(&mut self) {
 		if let Some(value) = self.value.as_mut() {
 			value.strip();
@@ -101,7 +104,7 @@ impl<'a> JsonObject<'a> {
 		sr: &mut StringReader,
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
-		if first_char.char != '{' as u8 {
+		if first_char.char != b'{' {
 			return None;
 		}
 
@@ -119,9 +122,10 @@ impl<'a> JsonObject<'a> {
 			JsonValue::Object(_) | JsonValue::IncObject(_)
 		));
 
-		return Some(val);
+		Some(val)
 	}
 
+	#[allow(unused)]
 	pub fn take_properties(self) -> IndexMap<String, JsonValue<'a>> {
 		self.0
 	}
@@ -132,7 +136,7 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 		while let Some(c) = sr.peek() {
 			trace!("object::parse", c);
 
-			if self.newest_property.is_none() && c.char == '}' as u8 {
+			if self.newest_property.is_none() && c.char == b'}' {
 				sr.next();
 				return self.finish();
 			}
@@ -154,7 +158,7 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 					sr.skip_whitespace();
 
 					if let Some(c) = sr.peek()
-						&& c.char == ',' as u8
+						&& c.char == b','
 					{
 						sr.curr_index += 1;
 						sr.skip_whitespace();
@@ -217,7 +221,7 @@ impl<'a> IncJsonObject<'a> {
 
 			property_name_end.index
 		} else {
-			let Some(property_name_end) = sr.find(|c| c.char == ':' as u8) else {
+			let Some(property_name_end) = sr.find(|c| c.char == b':') else {
 				trace!("Failed finding ':'");
 				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
 					return Some((
@@ -237,7 +241,7 @@ impl<'a> IncJsonObject<'a> {
 			return None;
 		};
 
-		if let Some(_) = sr.find(|c| c.char == ':' as u8) {
+		if sr.find(|c| c.char == b':').is_some() {
 			return Some((PropertyKey::Complete(name), true));
 		};
 
@@ -251,7 +255,7 @@ impl<'a> IncJsonObject<'a> {
 
 		if self.newest_property.is_none()
 			&& let Some(c) = sr.peek()
-			&& c.char == ',' as u8
+			&& c.char == b','
 		{
 			sr.next();
 		}
@@ -289,7 +293,7 @@ impl<'a> IncJsonObject<'a> {
 				}
 				PropertyKey::Complete(name) => {
 					if !property.found_colon {
-						let Some(_) = sr.find(|c| c.char == ':' as u8) else {
+						let Some(_) = sr.find(|c| c.char == b':') else {
 							trace!("Failed finding ':'");
 							return Some(Property::Incomplete(IncProperty {
 								key: PropertyKey::Complete(name),
@@ -313,7 +317,7 @@ impl<'a> IncJsonObject<'a> {
 				return None;
 			};
 
-			let quoted = if first.char == '"' as u8 {
+			let quoted = if first.char == b'"' {
 				trace!("-> quoted");
 				true
 			} else {
@@ -363,6 +367,7 @@ impl<'a> IncJsonObject<'a> {
 }
 
 impl PropertyKey {
+	#[allow(unused)]
 	pub fn take_key(self) -> String {
 		match self {
 			PropertyKey::Complete(key) => key,

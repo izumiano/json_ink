@@ -25,7 +25,7 @@ impl JsonString {
 		sr: &mut StringReader,
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
-		if first_char.char != '"' as u8 {
+		if first_char.char != b'"' {
 			return None;
 		}
 

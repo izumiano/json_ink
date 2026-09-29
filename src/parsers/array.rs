@@ -20,10 +20,11 @@ impl<'a> Debug for JsonArray<'a> {
 }
 
 impl<'a> IncJsonArray<'a> {
+	#[allow(unused)]
 	pub fn strip(&mut self) {
 		let elements = &mut self.0;
 
-		if elements.len() == 0 {
+		if elements.is_empty() {
 			self.0 = Default::default();
 			return;
 		}
@@ -42,26 +43,27 @@ impl<'a> IncJsonArray<'a> {
 impl<'a> JsonArray<'a> {
 	#[allow(unused)]
 	pub fn new(arr: Vec<JsonValue<'a>>) -> Self {
-		Self(arr, PhantomData::default())
+		Self(arr, PhantomData)
 	}
 
 	pub fn try_start_parse(
 		sr: &mut StringReader,
 		first_char: &CharWithIndex,
 	) -> Option<JsonValue<'a>> {
-		if first_char.char != '[' as u8 {
+		if first_char.char != b'[' {
 			return None;
 		}
 
 		trace!("is array");
 
-		let val = IncJsonArray(vec![], PhantomData::default());
+		let val = IncJsonArray(vec![], PhantomData);
 
 		let val = val.parse(sr);
 
-		return Some(val);
+		Some(val)
 	}
 
+	#[allow(unused)]
 	pub fn take_children(self) -> Vec<JsonValue<'a>> {
 		self.0
 	}
@@ -77,7 +79,7 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 				return self.into();
 			};
 
-			if self.0.len() > 0 {
+			if !self.0.is_empty() {
 				trace!("parse array child");
 				let child = self.0.swap_remove(self.0.len() - 1);
 				if let Some(new_child) = JsonValue::continue_parse(sr, child) {
@@ -95,21 +97,20 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 				trace!("after parse array child", c);
 			}
 
-			if c.char == ']' as u8 {
+			if c.char == b']' {
 				sr.next();
 				return self.finish();
 			}
 
-			if c.char == ',' as u8 {
+			if c.char == b',' {
 				sr.next();
 				continue;
 			}
 
 			let child = JsonValue::parse(sr, None);
 
-			match child {
-				Some(child) => self.0.push(child),
-				None => {}
+			if let Some(child) = child {
+				self.0.push(child);
 			}
 		}
 	}

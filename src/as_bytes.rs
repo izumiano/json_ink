@@ -22,13 +22,13 @@ impl<const N: usize> AsBytes for [u8; N] {
 
 impl AsBytes for str {
 	fn as_bytes(&self) -> &[u8] {
-		str::as_bytes(&self)
+		str::as_bytes(self)
 	}
 }
 
 impl AsBytes for &str {
 	fn as_bytes(&self) -> &[u8] {
-		str::as_bytes(&self)
+		str::as_bytes(self)
 	}
 }
 
@@ -40,6 +40,7 @@ impl AsBytes for String {
 
 //
 
+#[allow(unused)]
 pub trait AsBytesMut {
 	fn as_bytes_mut(&mut self) -> &mut [u8];
 }
