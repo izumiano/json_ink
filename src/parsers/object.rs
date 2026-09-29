@@ -9,13 +9,13 @@ use crate::{
 	string_reader::{CharWithIndex, StringReader},
 };
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Default)]
 pub struct JsonObject<'a>(pub(crate) IndexMap<String, JsonValue<'a>>);
 
 #[derive(PartialEq, Debug, Default, Clone)]
 pub struct IncJsonObject<'a> {
-	map: IndexMap<String, JsonValue<'a>>,
-	newest_property: Option<IncProperty<'a>>,
+	pub map: IndexMap<String, JsonValue<'a>>,
+	pub newest_property: Option<IncProperty<'a>>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -60,6 +60,28 @@ impl<'a> IncJsonObject<'a> {
 		Self {
 			map,
 			newest_property,
+		}
+	}
+
+	pub fn take_properties(self) -> IndexMap<String, JsonValue<'a>> {
+		self.map
+	}
+
+	pub fn strip(&mut self) {
+		self.map = Default::default();
+
+		if let Some(newest_prop) = self.newest_property.as_mut()
+			&& let Some(val) = newest_prop.value.as_mut()
+		{
+			val.strip();
+		}
+	}
+}
+
+impl<'a> IncProperty<'a> {
+	pub fn strip(&mut self) {
+		if let Some(value) = self.value.as_mut() {
+			value.strip();
 		}
 	}
 }
@@ -336,6 +358,15 @@ impl<'a> IncJsonObject<'a> {
 				},
 				property_value,
 			)),
+		}
+	}
+}
+
+impl PropertyKey {
+	pub fn take_key(self) -> String {
+		match self {
+			PropertyKey::Complete(key) => key,
+			PropertyKey::Incomplete(key) => key.name,
 		}
 	}
 }

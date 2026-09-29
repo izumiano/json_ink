@@ -22,6 +22,7 @@ pub mod number;
 pub mod object;
 pub mod string;
 
+#[derive(Debug, Default)]
 pub struct JsonInk<'a>(Option<JsonValue<'a>>);
 
 impl<'a> JsonInk<'a> {
@@ -30,13 +31,19 @@ impl<'a> JsonInk<'a> {
 	}
 
 	#[allow(unused)]
-	pub fn parse(data: &'a impl AsBytes) -> Option<JsonValue<'a>> {
+	pub fn parse<T>(data: &'a T) -> Option<JsonValue<'a>>
+	where
+		T: AsBytes + ?Sized,
+	{
 		let mut instance = Self::new();
 		instance.parse_part(data);
 		instance.0.take()
 	}
 
-	pub fn parse_part<'b>(&mut self, data: &'b impl AsBytes) -> &Option<JsonValue<'a>> {
+	pub fn parse_part<'b, T>(&mut self, data: &'b T) -> &Option<JsonValue<'a>>
+	where
+		T: AsBytes + ?Sized,
+	{
 		trace!("parse");
 		let mut sr = StringReader::new(data);
 
@@ -165,6 +172,26 @@ impl<'a> JsonValue<'a> {
 
 		None
 	}
+
+	fn strip(&mut self) {
+		match self {
+			JsonValue::IncObject(v) => v.strip(),
+			JsonValue::IncArray(v) => v.strip(),
+			_ => {}
+		}
+	}
+
+	fn is_incomplete(&self) -> bool {
+		match self {
+			JsonValue::IncObject(_)
+			| JsonValue::IncArray(_)
+			| JsonValue::IncString(_)
+			| JsonValue::IncNumber(_)
+			| JsonValue::IncBool(_)
+			| JsonValue::IncNull(_) => true,
+			_ => false,
+		}
+	}
 }
 
 impl<'a> Debug for JsonValue<'a> {
@@ -224,6 +251,9 @@ mod tests {
 	};
 
 	use super::*;
+
+	#[allow(unused)]
+	use pretty_assertions::{assert_eq, assert_ne};
 
 	#[test]
 	fn empty() {
@@ -787,6 +817,11 @@ mod tests {
 		assert_split_eq!(
 			["{", "hello", ": true}"],
 			JsonObject::new(vec![("hello", JsonBool(true).into())]).into()
+		);
+
+		assert_split_eq!(
+			["{", r#"""#, "h", r#"": true}"#],
+			JsonObject::new(vec![("h", JsonBool(true).into())]).into()
 		);
 
 		assert_split_eq!(

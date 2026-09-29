@@ -7,6 +7,9 @@ edition = "2024"
 indexmap = "2.14.2"
 logging = { path = "./logging" }
 
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+
 [features]
 logging = ["logging/logging"]
 trace = ["logging", "logging/trace"]

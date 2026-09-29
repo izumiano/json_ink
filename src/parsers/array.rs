@@ -19,6 +19,26 @@ impl<'a> Debug for JsonArray<'a> {
 	}
 }
 
+impl<'a> IncJsonArray<'a> {
+	pub fn strip(&mut self) {
+		let elements = &mut self.0;
+
+		if elements.len() == 0 {
+			self.0 = Default::default();
+			return;
+		}
+
+		let last = elements[elements.len() - 1].clone();
+
+		if !last.is_incomplete() {
+			self.0 = Default::default();
+			return;
+		}
+
+		self.0 = vec![last];
+	}
+}
+
 impl<'a> JsonArray<'a> {
 	#[allow(unused)]
 	pub fn new(arr: Vec<JsonValue<'a>>) -> Self {

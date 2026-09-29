@@ -36,7 +36,10 @@ pub enum StrCompareIsMatch {
 }
 
 impl<'a> StringReader<'a> {
-	pub fn new(str: &'a impl AsBytes) -> Self {
+	pub fn new<T>(str: &'a T) -> Self
+	where
+		T: AsBytes + ?Sized,
+	{
 		Self {
 			bytes: str.as_bytes(),
 			curr_index: 0,
