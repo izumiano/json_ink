@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
-	parsers::{JsonParsable, JsonValue},
+	parsers::{JsonParsable, JsonValue, invalid::JsonInvalid},
 	string_reader::{CharWithIndex, StringReader},
 };
 
@@ -143,10 +143,13 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 
 		if invalid {
 			log_warn!("Failed parsing number");
-			return JsonValue::Invalid(
+
+			return JsonInvalid::start_parse(
+				sr,
 				sr.get_string(self.start_str_index..sr.curr_index)
 					.unwrap_or_else(|e| e.to_string()),
-			);
+			)
+			.into();
 		}
 
 		self.into()
@@ -155,12 +158,18 @@ impl<'a> JsonParsable<'a> for IncJsonNumber {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish number", self);
 
+		JsonNumber(self.to_float()).into()
+	}
+}
+
+impl IncJsonNumber {
+	pub fn to_float(self) -> f64 {
 		let val = self.integer_part as f64
 			+ (self.decimal_part.value as f64 / 10u64.pow(self.decimal_part.digit_count as u32) as f64);
 
 		let neg_multiplier = self.is_negative as i64 as f64 * -2. + 1.;
 
-		JsonNumber(val as f64 * neg_multiplier).into()
+		val as f64 * neg_multiplier
 	}
 }
 

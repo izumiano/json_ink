@@ -7,6 +7,7 @@ use crate::{
 	parsers::{
 		array::{IncJsonArray, JsonArray},
 		bool::{IncJsonBool, JsonBool},
+		invalid::{IncJsonInvalid, JsonInvalid},
 		null::{IncJsonNull, JsonNull},
 		number::{IncJsonNumber, JsonNumber},
 		object::{IncJsonObject, JsonObject},
@@ -17,6 +18,7 @@ use crate::{
 
 pub mod array;
 pub mod bool;
+pub mod invalid;
 pub mod null;
 pub mod number;
 pub mod object;
@@ -47,7 +49,42 @@ impl<'a> JsonInk<'a> {
 		trace!("parse");
 		let mut sr = StringReader::new(data);
 
-		let val = JsonValue::parse(&mut sr, self.0.take());
+		let mut val = self.0.take();
+		let new_val = JsonValue::parse(&mut sr, val);
+		val = new_val;
+
+		if !sr.is_empty() {
+			log_warn!("extra characters after parsing");
+
+			loop {
+				let Some(val) = val.as_mut() else {
+					break;
+				};
+
+				let curr = sr.next().unwrap();
+				let extra = JsonInvalid::start_parse(&mut sr, (curr.char as char).to_string());
+
+				let is_final = sr.is_empty();
+
+				match (val, extra) {
+					(JsonValue::Invalid(invalid), JsonValue::Invalid(extra)) => invalid.0 += &extra.0,
+					(JsonValue::Invalid(invalid), JsonValue::IncInvalid(extra)) => {
+						invalid.0 += &extra.0;
+
+						if is_final {
+							invalid.0 = invalid.0.trim().to_string();
+						}
+					}
+					_ => {
+						log_error!("Unknown behaviour");
+					}
+				}
+
+				if is_final {
+					break;
+				}
+			}
+		}
 
 		self.0 = val;
 
@@ -85,7 +122,8 @@ pub enum JsonValue<'a> {
 	Bool(JsonBool),
 	Null(JsonNull),
 
-	Invalid(String),
+	IncInvalid(IncJsonInvalid),
+	Invalid(JsonInvalid),
 }
 
 impl<'a> JsonValue<'a> {
@@ -128,6 +166,12 @@ impl<'a> JsonValue<'a> {
 				trace!("end continue_parse for 'null'");
 				val
 			}
+			JsonValue::IncInvalid(invalid) => {
+				trace!(" -> invalid");
+				let val = Some(invalid.parse(sr));
+				trace!("end continue_parse for 'invalid'");
+				val
+			}
 			_ => {
 				trace!(" -> none");
 				Some(value)
@@ -168,9 +212,11 @@ impl<'a> JsonValue<'a> {
 		try_start_parse!(JsonNull, curr_value, sr, first_char);
 
 		log_warn!("could not parse to any type");
-		// panic!("could not parse to any type");
 
-		None
+		Some(JsonInvalid::start_parse(
+			sr,
+			(first_char.char as char).to_string(),
+		))
 	}
 
 	fn strip(&mut self) {
@@ -188,7 +234,8 @@ impl<'a> JsonValue<'a> {
 			| JsonValue::IncString(_)
 			| JsonValue::IncNumber(_)
 			| JsonValue::IncBool(_)
-			| JsonValue::IncNull(_) => true,
+			| JsonValue::IncNull(_)
+			| JsonValue::IncInvalid(_) => true,
 			_ => false,
 		}
 	}
@@ -211,6 +258,7 @@ impl<'a> Debug for JsonValue<'a> {
 			Self::Bool(arg0) => write!(f, "{:#?}", arg0.0),
 			Self::Null(arg0) => write!(f, "{:#?}", arg0),
 
+			Self::IncInvalid(arg0) => f.debug_tuple("IncInvalid").field(arg0).finish(),
 			Self::Invalid(arg0) => f.debug_tuple("Invalid").field(arg0).finish(),
 		}
 	}
@@ -263,11 +311,11 @@ mod tests {
 			JsonInk::parse(
 				r#"   				
 		
-			,}
+			,  }
 		
 			 "#
 			),
-			None
+			Some(JsonValue::Invalid(JsonInvalid(",  }".into())))
 		);
 	}
 
@@ -636,19 +684,36 @@ mod tests {
 	fn number_invalid() {
 		assert_eq!(
 			JsonInk::parse(r#"10g"#),
-			Some(JsonValue::Invalid("10g".into()))
+			Some(JsonValue::IncInvalid(IncJsonInvalid("10g".into())))
 		);
 		assert_eq!(
 			JsonInk::parse(r#"-a"#),
-			Some(JsonValue::Invalid("-a".into()))
+			Some(JsonValue::IncInvalid(IncJsonInvalid("-a".into())))
 		);
 		assert_eq!(
 			JsonInk::parse(r#".btasf"#),
-			Some(JsonValue::Invalid(".b".into()))
+			Some(JsonValue::IncInvalid(IncJsonInvalid(".btasf".into())))
 		);
 		assert_eq!(
 			JsonInk::parse(r#"10.52m"#),
-			Some(JsonValue::Invalid("10.52m".into()))
+			Some(JsonValue::IncInvalid(IncJsonInvalid("10.52m".into())))
+		);
+
+		assert_eq!(
+			JsonInk::parse(r#"10g,"#),
+			Some(JsonValue::Invalid(JsonInvalid("10g,".into())))
+		);
+		assert_eq!(
+			JsonInk::parse(r#"-a,"#),
+			Some(JsonValue::Invalid(JsonInvalid("-a,".into())))
+		);
+		assert_eq!(
+			JsonInk::parse(r#".btasf}"#),
+			Some(JsonValue::Invalid(JsonInvalid(".btasf}".into())))
+		);
+		assert_eq!(
+			JsonInk::parse(r#"10.52m}"#),
+			Some(JsonValue::Invalid(JsonInvalid("10.52m}".into())))
 		);
 	}
 

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
-	json_reader::thing,
+	json_reader::string_parse,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -47,11 +47,11 @@ impl<'a> JsonParsable<'a> for IncJsonBool {
 		match self {
 			IncJsonBool::True(orig_count) => {
 				// finish_if_complete!(self, sr, "true", orig_count);
-				thing!(self, IncJsonBool::True, sr, "true", orig_count)
+				string_parse!(self, IncJsonBool::True, sr, "true", orig_count)
 			}
 			IncJsonBool::False(orig_count) => {
 				// finish_if_complete!(self, sr, "false", orig_count);
-				thing!(self, IncJsonBool::False, sr, "false", orig_count)
+				string_parse!(self, IncJsonBool::False, sr, "false", orig_count)
 			}
 		}
 	}

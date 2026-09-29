@@ -1,13 +1,13 @@
 #![allow(unused)]
 
 pub trait JsonReader {
-	fn goto_safe(&mut self);
+	fn goto_safe(&mut self) -> bool;
 	fn next_is_separator(&self) -> bool;
 	fn find_quote(&mut self) -> Option<CharWithIndex>;
 }
 
 impl<'a> JsonReader for StringReader<'a> {
-	fn goto_safe(&mut self) {
+	fn goto_safe(&mut self) -> bool {
 		self.skip_whitespace();
 
 		while let Some(c) = self.next() {
@@ -18,17 +18,19 @@ impl<'a> JsonReader for StringReader<'a> {
 			match char {
 				'}' | ']' => {
 					self.curr_index -= 1;
-					break;
+					return true;
 				}
 				',' => {
 					self.skip_whitespace();
-					break;
+					return true;
 				}
 				_ => {
 					self.skip_whitespace();
 				}
 			}
 		}
+
+		false
 	}
 
 	fn next_is_separator(&self) -> bool {
@@ -78,7 +80,7 @@ macro_rules! finish_if_complete {
 
 pub(crate) use finish_if_complete;
 
-macro_rules! thing {
+macro_rules! string_parse {
 	($self:ident, $ret:expr, $sr:ident, $cmp:expr, $orig_count:expr) => {{
 		use $crate::json_reader::*;
 
@@ -98,17 +100,17 @@ macro_rules! thing {
 			}
 			crate::string_reader::StrCompareIsMatch::False => {
 				log_warn!(format!("Invalid {}", stringify!($ret)));
-				return JsonValue::Invalid(
+				return JsonValue::Invalid($crate::parsers::invalid::JsonInvalid(
 					$sr
 						.get_string($sr.curr_index..$sr.bytes.len())
 						.unwrap_or_else(|e| e.to_string()),
-				);
+				));
 			}
 		}
 	}};
 }
 
 use logging::trace;
-pub(crate) use thing;
+pub(crate) use string_parse;
 
 use crate::string_reader::{CharWithIndex, StringReader};

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use logging::*;
 
 use crate::{
-	json_reader::thing,
+	json_reader::string_parse,
 	parsers::{JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
@@ -12,7 +12,7 @@ use crate::{
 pub struct JsonNull;
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IncJsonNull(pub(crate) usize);
+pub struct IncJsonNull(pub usize);
 
 impl Debug for JsonNull {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -37,7 +37,7 @@ impl JsonNull {
 
 impl<'a> JsonParsable<'a> for IncJsonNull {
 	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
-		thing!(self, IncJsonNull, sr, "null", self.0);
+		string_parse!(self, IncJsonNull, sr, "null", self.0);
 	}
 
 	fn finish(self) -> JsonValue<'a> {

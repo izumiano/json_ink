@@ -132,6 +132,10 @@ impl<'a> StringReader<'a> {
 	pub fn get_string(&self, range: Range<usize>) -> Result<String, std::str::Utf8Error> {
 		Ok(self.get_str(range)?.to_string())
 	}
+
+	pub fn is_empty(&self) -> bool {
+		self.curr_index >= self.bytes.len()
+	}
 }
 
 impl<'a> Iterator for StringReader<'a> {
