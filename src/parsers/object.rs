@@ -256,7 +256,7 @@ impl<'a> IncJsonObject<'a> {
 		if self.newest_property.is_none() {
 			sr.skip_whitespace();
 
-			let Some(c) = sr.peek() else { return None };
+			let c = sr.peek()?;
 
 			if c.char == b'}' {
 				return None;

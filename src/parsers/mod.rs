@@ -53,6 +53,8 @@ impl<'a> JsonInk<'a> {
 		let new_val = JsonValue::parse(&mut sr, val);
 		val = new_val;
 
+		sr.skip_whitespace();
+
 		if !sr.is_empty() {
 			log_warn!("extra characters after parsing");
 
@@ -60,23 +62,60 @@ impl<'a> JsonInk<'a> {
 				let curr = sr.next().unwrap();
 				let extra = JsonInvalid::start_parse(&mut sr, (curr.char as char).to_string());
 
-				let is_final = sr.is_empty();
+				let is_empty = sr.is_empty();
+				let mut is_final = is_empty;
 
-				match (val, extra) {
-					(JsonValue::Invalid(invalid), JsonValue::Invalid(extra)) => invalid.0 += &extra.0,
-					(JsonValue::Invalid(invalid), JsonValue::IncInvalid(extra)) => {
-						invalid.0 += &extra.0;
+				let extra_string = match &extra {
+					JsonValue::Invalid(extra) => {
+						is_final = true;
+						&extra.0
+					}
+					JsonValue::IncInvalid(extra) => &extra.0,
+					_ => break,
+				};
+
+				match val {
+					JsonValue::Invalid(invalid) => {
+						invalid.0 += extra_string;
 
 						if is_final {
 							invalid.0 = invalid.0.trim().to_string();
 						}
 					}
+					JsonValue::Object(object) => {
+						let orig_key = "invalid";
+						let mut key = orig_key.to_string();
+						let mut index = 1;
+						while object.0.contains_key(&key) {
+							key = format!("{}{}", orig_key, index);
+							index += 1;
+						}
+
+						object.0.insert(key, extra);
+					}
+					JsonValue::IncObject(object) => {
+						let orig_key = "invalid";
+						let mut key = orig_key.to_string();
+						let mut index = 1;
+						while object.map.contains_key(&key) {
+							key = format!("{}{}", orig_key, index);
+							index += 1;
+						}
+
+						object.map.insert(key, extra);
+					}
+					JsonValue::Array(array) => {
+						array.0.push(extra);
+					}
+					JsonValue::IncArray(array) => {
+						array.0.push(extra);
+					}
 					_ => {
-						log_error!("Unknown behaviour");
+						log_error!("Unknown behaviour", val, extra);
 					}
 				}
 
-				if is_final {
+				if is_empty {
 					break;
 				}
 			}
