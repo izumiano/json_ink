@@ -253,11 +253,18 @@ impl<'a> IncJsonObject<'a> {
 	fn parse_property(&mut self, sr: &mut StringReader) -> Option<Property<'a>> {
 		trace!("parse property");
 
-		if self.newest_property.is_none()
-			&& let Some(c) = sr.peek()
-			&& c.char == b','
-		{
-			sr.next();
+		if self.newest_property.is_none() {
+			sr.skip_whitespace();
+
+			let Some(c) = sr.peek() else { return None };
+
+			if c.char == b'}' {
+				return None;
+			}
+
+			if c.char == b',' {
+				sr.next();
+			}
 		}
 
 		let property_key;

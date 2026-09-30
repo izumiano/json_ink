@@ -842,6 +842,11 @@ mod tests {
 			])
 			.into()
 		);
+
+		assert_split_eq!(
+			[r#"{"key": {}"#, "\n}"],
+			JsonObject::new(vec![("key", JsonObject::new(vec![]).into())]).into()
+		);
 	}
 
 	#[test]
