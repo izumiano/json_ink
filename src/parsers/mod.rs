@@ -255,7 +255,7 @@ impl<'a> JsonValue<'a> {
 	}
 
 	#[allow(unused)]
-	fn strip(&mut self) {
+	pub fn strip(&mut self) {
 		match self {
 			JsonValue::IncObject(v) => v.strip(),
 			JsonValue::IncArray(v) => v.strip(),
@@ -304,6 +304,7 @@ impl<'a> Debug for JsonValue<'a> {
 macro_rules! json_parse {
 	[$($vals:literal),+ $(,)?] => {{
 		use $crate::JsonInk;
+		use logging::*;
 
 		let mut parser = JsonInk::new();
 		let arr = [$($vals),+];
