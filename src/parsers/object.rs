@@ -129,6 +129,11 @@ impl<'a> JsonObject<'a> {
 	pub fn take_properties(self) -> IndexMap<String, JsonValue<'a>> {
 		self.0
 	}
+
+	#[allow(unused)]
+	pub fn strip(&mut self) {
+		self.0 = Default::default();
+	}
 }
 
 impl<'a> JsonParsable<'a> for IncJsonObject<'a> {

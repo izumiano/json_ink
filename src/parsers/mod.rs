@@ -259,11 +259,13 @@ impl<'a> JsonValue<'a> {
 		match self {
 			JsonValue::IncObject(v) => v.strip(),
 			JsonValue::IncArray(v) => v.strip(),
+			JsonValue::Object(v) => v.strip(),
+			JsonValue::Array(v) => v.strip(),
 			_ => {}
 		}
 	}
 
-	fn is_incomplete(&self) -> bool {
+	pub fn is_incomplete(&self) -> bool {
 		matches!(
 			self,
 			JsonValue::IncObject(_)

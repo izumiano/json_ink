@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(PartialEq, Clone)]
-pub struct JsonArray<'a>(pub Vec<JsonValue<'a>>, PhantomData<&'a u8>);
+pub struct JsonArray<'a>(pub Vec<JsonValue<'a>>);
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IncJsonArray<'a>(pub Vec<JsonValue<'a>>, PhantomData<&'a u8>);
@@ -21,29 +21,39 @@ impl<'a> Debug for JsonArray<'a> {
 
 impl<'a> IncJsonArray<'a> {
 	#[allow(unused)]
+	pub fn new(arr: Vec<JsonValue<'a>>) -> Self {
+		Self(arr, PhantomData)
+	}
+
+	#[allow(unused)]
 	pub fn strip(&mut self) {
 		let elements = &mut self.0;
 
-		if elements.is_empty() {
+		let Some(mut last) = elements.pop() else {
 			self.0 = Default::default();
 			return;
-		}
-
-		let last = elements[elements.len() - 1].clone();
+		};
 
 		if !last.is_incomplete() {
 			self.0 = Default::default();
 			return;
 		}
 
+		last.strip();
+
 		self.0 = vec![last];
+	}
+
+	#[allow(unused)]
+	pub fn take_children(self) -> Vec<JsonValue<'a>> {
+		self.0
 	}
 }
 
 impl<'a> JsonArray<'a> {
 	#[allow(unused)]
 	pub fn new(arr: Vec<JsonValue<'a>>) -> Self {
-		Self(arr, PhantomData)
+		Self(arr)
 	}
 
 	pub fn try_start_parse(
@@ -66,6 +76,11 @@ impl<'a> JsonArray<'a> {
 	#[allow(unused)]
 	pub fn take_children(self) -> Vec<JsonValue<'a>> {
 		self.0
+	}
+
+	#[allow(unused)]
+	pub fn strip(&mut self) {
+		self.0 = vec![];
 	}
 }
 
@@ -118,7 +133,7 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish array", self.0);
 
-		JsonArray(self.0, self.1).into()
+		JsonArray(self.0).into()
 	}
 }
 
