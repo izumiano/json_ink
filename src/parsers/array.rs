@@ -88,7 +88,11 @@ impl<'a> JsonParsable<'a> for IncJsonArray<'a> {
 	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
 		loop {
 			trace!("array.parse");
-			sr.skip_whitespace();
+
+			if self.0.is_empty() {
+				sr.skip_whitespace();
+			}
+
 			let Some(mut c) = sr.peek() else {
 				trace!("Array unfinished");
 				return self.into();

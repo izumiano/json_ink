@@ -347,8 +347,6 @@ impl<'a> IncJsonObject<'a> {
 			found_colon = _found_colon;
 		}
 
-		sr.skip_whitespace();
-
 		trace!(property_key, found_colon);
 
 		let property_value = JsonValue::parse(sr, property_value);

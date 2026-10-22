@@ -816,6 +816,18 @@ mod tests {
 			assert_eq!(val, Some($other), "split == intended");
 			assert_eq!(val, val2, "split == normal");
 		};
+		(@chars, $str:literal, $other:expr) => {
+			let mut parser = JsonInk::new();
+			for part in $str.bytes(){
+				parser.parse_part(&[part]);
+			}
+
+			let val = parser.take();
+			let val2 = JsonInk::parse($str);
+			assert_eq!(val2, Some($other), "normal == intended");
+			assert_eq!(val, Some($other), "split == intended");
+			assert_eq!(val, val2, "split == normal");
+		};
 	}
 
 	#[test]
@@ -824,6 +836,11 @@ mod tests {
 			["{", r#""prop""#, ":", "\t10", ".5,", "}"],
 			JsonObject::new(vec![("prop", JsonNumber(10.5).into())]).into()
 		);
+
+		let mut parser = JsonInk::new();
+		for a in "".bytes() {
+			parser.parse_part(&[a]);
+		}
 
 		assert_split_eq!(
 			[r#"{"prop"#, r#"":"#, "[", ".5,", "]}"],
@@ -888,6 +905,22 @@ mod tests {
 		assert_split_eq!(
 			[r#"{"key": {}"#, "\n}"],
 			JsonObject::new(vec![("key", JsonObject::new(vec![]).into())]).into()
+		);
+
+		assert_split_eq!(
+			@chars,
+			r#"{" k e y ":null}"#,
+			JsonObject::new(vec![(" k e y ", JsonValue::Null(JsonNull))]).into()
+		);
+
+		assert_split_eq!(
+			@chars,
+			r#"{"key":" s t r i n g "}"#,
+			JsonObject::new(vec![(
+				"key",
+				JsonValue::String(JsonString(" s t r i n g ".into()))
+			)])
+			.into()
 		);
 	}
 
@@ -958,6 +991,22 @@ mod tests {
 			])
 			.into()
 		);
+
+		assert_split_eq!(
+			@chars,
+			r#"{ k e y :null}"#,
+			JsonObject::new(vec![("k e y ", JsonValue::Null(JsonNull))]).into()
+		);
+
+		assert_split_eq!(
+			@chars,
+			r#"{key:" s t r i n g "}"#,
+			JsonObject::new(vec![(
+				"key",
+				JsonValue::String(JsonString(" s t r i n g ".into()))
+			)])
+			.into()
+		);
 	}
 
 	#[test]
@@ -976,11 +1025,41 @@ mod tests {
 			])
 			.into()
 		);
+
+		assert_split_eq!(
+			@chars,
+			r#"[{"key":" s t r i n g "}]"#,
+			JsonArray::new(vec![
+				JsonObject::new(vec![(
+					"key",
+					JsonValue::String(JsonString(" s t r i n g ".into()))
+				)])
+				.into()
+			])
+			.into()
+		);
+
+		assert_split_eq!(["[", " ]"], JsonArray::new(vec![]).into());
+
+		assert_split_eq!(
+			[r#"[{"key": ["#, " ]"],
+			IncJsonArray::new(vec![
+				IncJsonObject::new(vec![("key", JsonArray::new(vec![]).into())], None).into()
+			])
+			.into()
+		);
 	}
 
 	#[test]
 	fn split_string() {
 		assert_split_eq![r#""  hello "#, " wo", r#"rld  ","#];
+
+		assert_split_eq!(
+			[
+				r#"""#, " ", "s", " ", "t", " ", "r", " ", "i", " ", "n", " ", "g", " ", r#"""#
+			],
+			JsonValue::String(JsonString(" s t r i n g ".into()))
+		);
 	}
 
 	#[test]
