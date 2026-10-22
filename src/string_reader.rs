@@ -125,6 +125,10 @@ impl<'a> StringReader<'a> {
 		{}
 	}
 
+	pub fn get_range(&self, range: Range<usize>) -> &[u8] {
+		&self.bytes[range]
+	}
+
 	pub fn get_str(&self, range: Range<usize>) -> Result<&str, std::str::Utf8Error> {
 		str::from_utf8(&self.bytes[range])
 	}

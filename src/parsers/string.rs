@@ -12,7 +12,7 @@ use crate::{
 pub struct JsonString(pub String);
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IncJsonString(pub Option<String>);
+pub struct IncJsonString(pub Option<Vec<u8>>);
 
 impl Debug for JsonString {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,13 +38,22 @@ impl JsonString {
 }
 
 impl IncJsonString {
-	fn combine_strings(mut self, other: &str) -> Self {
-		let str = match self.0 {
-			Some(old_str) => old_str + other,
-			None => other.to_string(),
-		};
+	#[allow(unused)]
+	pub fn get_string(&self) -> Option<&str> {
+		match &self.0 {
+			Some(data) => match str::from_utf8(data) {
+				Ok(str) => Some(str),
+				Err(err) => Some(str::from_utf8(&data[..err.valid_up_to()]).unwrap()),
+			},
+			None => None,
+		}
+	}
 
-		self.0 = Some(str);
+	fn combine_strings(mut self, other: &[u8]) -> Self {
+		match &mut self.0 {
+			Some(old_str) => old_str.extend_from_slice(other),
+			None => self.0 = Some(other.to_vec()),
+		};
 
 		self
 	}
@@ -55,10 +64,10 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 		let start_index = sr.curr_index;
 
 		let str = if let Some(string_end) = sr.find_quote() {
-			let str = sr.get_str(start_index..string_end.index).unwrap();
+			let str = sr.get_range(start_index..string_end.index);
 			self.combine_strings(str).finish()
 		} else {
-			let str = sr.get_str(start_index..sr.curr_index).unwrap();
+			let str = sr.get_range(start_index..sr.curr_index);
 			self.combine_strings(str).into()
 		};
 
@@ -69,7 +78,11 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish string", self);
-		JsonString(self.0.unwrap()).into()
+
+		let data = self.0.unwrap();
+		let str = str::from_utf8(&data).unwrap();
+
+		JsonString(str.into()).into()
 	}
 }
 

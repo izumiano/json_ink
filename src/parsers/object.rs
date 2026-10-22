@@ -32,7 +32,7 @@ pub enum PropertyKey {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IncPropertyKey {
-	pub name: String,
+	pub name: String, // TODO: handle incomplete unicode characters
 	pub quoted: bool,
 }
 

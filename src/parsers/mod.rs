@@ -306,6 +306,7 @@ impl<'a> Debug for JsonValue<'a> {
 macro_rules! json_parse {
 	[$($vals:literal),+ $(,)?] => {{
 		use $crate::JsonInk;
+		#[allow(unused)]
 		use logging::*;
 
 		let mut parser = JsonInk::new();
@@ -1060,6 +1061,18 @@ mod tests {
 			],
 			JsonValue::String(JsonString(" s t r i n g ".into()))
 		);
+
+		let mut parser = JsonInk::new();
+
+		let data = r#""–""#.as_bytes(); // strange unicode character
+
+		for part in data {
+			parser.parse_part(&[*part]);
+		}
+
+		let intended = JsonValue::String(JsonString("–".into())).into();
+		assert_eq!(json_parse!(r#""–""#), intended, "normal == intended");
+		assert_eq!(parser.take(), intended, "split == intended");
 	}
 
 	#[test]
