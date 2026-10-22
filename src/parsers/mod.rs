@@ -589,8 +589,8 @@ mod tests {
 			Some(
 				JsonArray::new(vec![
 					JsonObject::new(vec![
-						(&"prop", JsonString("str".to_string()).into()),
-						(&"val", JsonNumber(10.).into())
+						("prop", JsonString("str".to_string()).into()),
+						("val", JsonNumber(10.).into())
 					])
 					.into(),
 					JsonNumber(-5.3).into(),
@@ -626,8 +626,8 @@ mod tests {
 			Some(
 				JsonArray::new(vec![
 					JsonObject::new(vec![
-						(&"prop", JsonString("str".to_string()).into()),
-						(&"val", JsonNumber(10.).into())
+						("prop", JsonString("str".to_string()).into()),
+						("val", JsonNumber(10.).into())
 					])
 					.into(),
 					JsonNumber(-5.3).into(),
