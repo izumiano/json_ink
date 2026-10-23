@@ -33,7 +33,7 @@ impl<'a> JsonInk<'a> {
 	}
 
 	#[allow(unused)]
-	pub fn parse<T>(data: &'a T) -> Option<JsonValue<'a>>
+	pub fn parse<T>(data: &T) -> Option<JsonValue<'a>>
 	where
 		T: AsBytes + ?Sized,
 	{
@@ -42,7 +42,7 @@ impl<'a> JsonInk<'a> {
 		instance.0.take()
 	}
 
-	pub fn parse_part<'b, T>(&mut self, data: &'b T) -> &Option<JsonValue<'a>>
+	pub fn parse_part<T>(&mut self, data: &T) -> &Option<JsonValue<'a>>
 	where
 		T: AsBytes + ?Sized,
 	{
@@ -333,9 +333,12 @@ macro_rules! json_parse {
 
 #[cfg(test)]
 mod tests {
-	use crate::parsers::{
-		number::DecimalPart,
-		object::{IncProperty, IncPropertyKey, PropertyKey},
+	use crate::{
+		as_bytes::CollectBytes,
+		parsers::{
+			number::DecimalPart,
+			object::{IncProperty, IncPropertyKey, PropertyKey},
+		},
 	};
 
 	use super::*;
@@ -779,55 +782,82 @@ mod tests {
 		);
 	}
 
-	macro_rules! assert_split_eq {
-		[$($vals:literal),+ $(,)?] => {
-			let mut parser = JsonInk::new();
+	macro_rules! split_helper {
+		(@array, [$($vals:literal),+ $(,)?]) => {{
 			let arr = [$($vals),+];
+			let mut parser = JsonInk::new();
 			for part in arr {
 				parser.parse_part(part);
 			}
 
-			assert_eq!(parser.take(), JsonInk::parse(&arr.join("")), "split == single");
-		};
-		([$($vals:literal),+ $(,)?], None) => {
+			let joined = JsonInk::parse(&arr.join("")).clone();
+
+			(parser.take(), joined)
+		}};
+		(@chars, $str:literal) => {{
 			let mut parser = JsonInk::new();
-			let arr = [$($vals),+];
-			for part in arr {
-				parser.parse_part(part);
+			for part in $str.chars() {
+				parser.parse_part(&[part].collect_bytes());
 			}
 
-			let joined = &arr.join("");
-			let val = parser.take();
-			let val2 = JsonInk::parse(joined);
-			assert_eq!(val2, None, "normal == intended");
-			assert_eq!(val, None, "split == intended");
-			assert_eq!(val, val2, "split == normal");
-		};
-		([$($vals:literal),* $(,)?], $other:expr) => {
+			parser.take()
+		}};
+		(@bytes, $str:literal) => {{
 			let mut parser = JsonInk::new();
-			let arr = [$($vals),*];
-			for part in arr {
-				parser.parse_part(part);
-			}
-
-			let joined = &arr.join("");
-			let val = parser.take();
-			let val2 = JsonInk::parse(joined);
-			assert_eq!(val2, Some($other), "normal == intended");
-			assert_eq!(val, Some($other), "split == intended");
-			assert_eq!(val, val2, "split == normal");
-		};
-		(@chars, $str:literal, $other:expr) => {
-			let mut parser = JsonInk::new();
-			for part in $str.bytes(){
+			for part in $str.bytes() {
 				parser.parse_part(&[part]);
 			}
 
-			let val = parser.take();
-			let val2 = JsonInk::parse($str);
-			assert_eq!(val2, Some($other), "normal == intended");
+			parser.take()
+		}};
+	}
+
+	macro_rules! assert_split_eq {
+		[$($vals:literal),+ $(,)?] => {
+			let (val, joined) = split_helper!(@array, [$($vals),+]);
+
+			assert_eq!(val, joined, "split == single");
+		};
+		([$($vals:literal),+ $(,)?], None) => {
+			let (val, joined) = split_helper!(@array, [$($vals),+]);
+
+			assert_eq!(joined, None, "normal == intended");
+			assert_eq!(val, None, "split == intended");
+			assert_eq!(val, joined, "split == normal");
+		};
+		([$($vals:literal),* $(,)?], $other:expr) => {
+			let (val, joined) = split_helper!(@array, [$($vals),+]);
+
+			assert_eq!(joined, Some($other), "normal == intended");
 			assert_eq!(val, Some($other), "split == intended");
-			assert_eq!(val, val2, "split == normal");
+			assert_eq!(val, joined, "split == normal");
+		};
+		(@chars, $str:literal, $other:expr) => {
+			let val = split_helper!(@chars, $str);
+			let normal_val = JsonInk::parse($str);
+
+			assert_eq!(normal_val, Some($other), "normal == intended");
+			assert_eq!(val, Some($other), "chars == intended");
+			assert_eq!(val, normal_val, "chars == normal");
+		};
+		(@bytes, $str:literal, $other:expr) => {
+			let val = split_helper!(@bytes, $str);
+			let normal_val = JsonInk::parse($str);
+
+			assert_eq!(normal_val, Some($other), "normal == intended");
+			assert_eq!(val, Some($other), "bytes == intended");
+			assert_eq!(val, normal_val, "bytes == normal");
+		};
+		(@chars, @bytes, $str:literal, $other:expr) => {
+			let chars_val = split_helper!(@chars, $str);
+			let bytes_val = split_helper!(@bytes, $str);
+			let normal_val = JsonInk::parse($str);
+
+			assert_eq!(normal_val, Some($other), "normal == intended");
+			assert_eq!(chars_val, Some($other), "chars == intended");
+			assert_eq!(chars_val, normal_val, "chars == normal");
+			assert_eq!(bytes_val, Some($other), "bytes == intended");
+			assert_eq!(bytes_val, normal_val, "bytes == normal");
 		};
 	}
 
@@ -923,6 +953,8 @@ mod tests {
 			)])
 			.into()
 		);
+
+		assert_split_eq!(@chars, @bytes, r#""–""#, JsonValue::String(JsonString("–".into())));
 	}
 
 	#[test]
@@ -1062,17 +1094,7 @@ mod tests {
 			JsonValue::String(JsonString(" s t r i n g ".into()))
 		);
 
-		let mut parser = JsonInk::new();
-
-		let data = r#""–""#.as_bytes(); // strange unicode character
-
-		for part in data {
-			parser.parse_part(&[*part]);
-		}
-
-		let intended = JsonValue::String(JsonString("–".into())).into();
-		assert_eq!(json_parse!(r#""–""#), intended, "normal == intended");
-		assert_eq!(parser.take(), intended, "split == intended");
+		assert_split_eq!(@chars, @bytes, r#""❤️""#, JsonValue::String(JsonString("❤️".into())));
 	}
 
 	#[test]
