@@ -1,9 +1,15 @@
 #![allow(unused)]
 
+#[derive(Debug)]
+pub struct FindQuoteResult {
+	pub end_quote: Option<CharWithIndex>,
+	pub escape_next: bool,
+}
+
 pub trait JsonReader {
 	fn goto_safe(&mut self) -> bool;
 	fn next_is_separator(&self) -> bool;
-	fn find_quote(&mut self) -> Option<CharWithIndex>;
+	fn find_quote(&mut self, escape_next: bool) -> FindQuoteResult;
 }
 
 impl<'a> JsonReader for StringReader<'a> {
@@ -47,7 +53,15 @@ impl<'a> JsonReader for StringReader<'a> {
 		ret
 	}
 
-	fn find_quote(&mut self) -> Option<CharWithIndex> {
+	fn find_quote(&mut self, escape_next: bool) -> FindQuoteResult {
+		if escape_next
+			&& let Some(c) = self.peek()
+			&& c.char == b'"'
+		{
+			self.next();
+			trace!("found escaped quote");
+		}
+
 		let mut quote = None;
 		while let Some(c) = self.find(|c| c.char == b'"') {
 			if let Some(prev_c) = self.previous()
@@ -61,7 +75,21 @@ impl<'a> JsonReader for StringReader<'a> {
 			break;
 		}
 
-		quote
+		trace!("test", quote, self.current());
+
+		let mut escape_next = false;
+		if quote.is_none()
+			&& let Some(prev_c) = self.current()
+			&& prev_c.char == b'\\'
+		{
+			trace!("found start of escape character");
+			escape_next = true;
+		}
+
+		FindQuoteResult {
+			end_quote: quote,
+			escape_next,
+		}
 	}
 }
 

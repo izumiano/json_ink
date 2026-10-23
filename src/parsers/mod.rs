@@ -331,9 +331,24 @@ macro_rules! json_parse {
 	}
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct IncString {
 	pub(crate) data: Vec<u8>,
+}
+
+impl Debug for IncString {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let str = match self.to_str() {
+			Ok(str) => str,
+			Err(err) => &format!(
+				"({} | [{:?}])",
+				self.to_valid_str(),
+				&self.data[err.valid_up_to()..]
+			),
+		};
+
+		f.debug_struct("IncString").field("data", &str).finish()
+	}
 }
 
 impl IncString {
@@ -1008,6 +1023,35 @@ mod tests {
 		);
 
 		assert_split_eq!(@chars, @bytes, r#"{"❤️": 10}"#, JsonObject::new(vec![("❤️", JsonValue::Number(JsonNumber(10.)))]).into());
+
+		assert_split_eq!(@chars, r#"{"start\"end": 10}"#, JsonObject::new(vec![(r#"start\"end"#, JsonValue::Number(JsonNumber(10.)))]).into());
+
+		assert_split_eq!(
+			@chars,
+			r#"
+			{
+				"some\"key": {
+					"arr\"key": [
+						-.33, 
+						"st\"r"
+					]
+				}
+			}
+			"#,
+			JsonObject::new(vec![(
+				r#"some\"key"#,
+				JsonObject::new(vec![(
+					r#"arr\"key"#,
+					JsonArray::new(vec![
+						JsonNumber(-0.33).into(),
+						JsonString(r#"st\"r"#.into()).into()
+					])
+					.into()
+				)])
+				.into()
+			)])
+			.into()
+		);
 	}
 
 	#[test]
@@ -1095,6 +1139,35 @@ mod tests {
 		);
 
 		assert_split_eq!(@chars, @bytes, r#"{❤️: 10}"#, JsonObject::new(vec![("❤️", JsonValue::Number(JsonNumber(10.)))]).into());
+
+		assert_split_eq!(@chars, r#"{start\"end: 10}"#, JsonObject::new(vec![(r#"start\"end"#, JsonValue::Number(JsonNumber(10.)))]).into());
+
+		assert_split_eq!(
+			@chars,
+			r#"
+			{
+				some\"key: {
+					arr\"key: [
+						-.33, 
+						"st\"r"
+					]
+				}
+			}
+			"#,
+			JsonObject::new(vec![(
+				r#"some\"key"#,
+				JsonObject::new(vec![(
+					r#"arr\"key"#,
+					JsonArray::new(vec![
+						JsonNumber(-0.33).into(),
+						JsonString(r#"st\"r"#.into()).into()
+					])
+					.into()
+				)])
+				.into()
+			)])
+			.into()
+		);
 	}
 
 	#[test]
@@ -1150,6 +1223,8 @@ mod tests {
 		);
 
 		assert_split_eq!(@chars, @bytes, r#""❤️""#, JsonValue::String(JsonString("❤️".into())));
+
+		assert_split_eq!(@chars, r#""start\"end""#, JsonValue::String(JsonString(r#"start\"end"#.into())));
 	}
 
 	#[test]

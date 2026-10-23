@@ -12,7 +12,10 @@ use crate::{
 pub struct JsonString(pub String);
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IncJsonString(pub IncString);
+pub struct IncJsonString {
+	string: IncString,
+	escape_next: bool,
+}
 
 impl Debug for JsonString {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -31,7 +34,10 @@ impl JsonString {
 
 		trace!("is string");
 
-		let val = IncJsonString(IncString { data: vec![] });
+		let val = IncJsonString {
+			string: IncString { data: vec![] },
+			escape_next: false,
+		};
 
 		Some(val.parse(sr))
 	}
@@ -41,13 +47,17 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
 		let start_index = sr.curr_index;
 
-		let str = if let Some(string_end) = sr.find_quote() {
+		let quote_result = sr.find_quote(self.escape_next);
+		trace!("string.parse early", quote_result, self.escape_next);
+
+		let str = if let Some(string_end) = quote_result.end_quote {
 			let str = sr.get_range(start_index..string_end.index);
-			self.0.combine_strings(&str);
+			self.string.combine_strings(&str);
 			self.finish()
 		} else {
 			let str = sr.get_range(start_index..sr.curr_index);
-			self.0.combine_strings(&str);
+			self.string.combine_strings(&str);
+			self.escape_next = quote_result.escape_next;
 			self.into()
 		};
 
@@ -59,7 +69,7 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish string", self);
 
-		let str = self.0.to_str().unwrap();
+		let str = self.string.to_str().unwrap();
 
 		JsonString(str.into()).into()
 	}

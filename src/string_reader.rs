@@ -80,6 +80,24 @@ impl<'a> StringReader<'a> {
 		})
 	}
 
+	pub fn current(&self) -> Option<CharWithIndex> {
+		if self.curr_index == 0 {
+			return None;
+		}
+
+		let curr_index = self.curr_index - 1;
+		let length = self.bytes.len();
+
+		if curr_index >= length {
+			return None;
+		}
+
+		Some(CharWithIndex {
+			index: curr_index,
+			char: self.bytes[curr_index],
+		})
+	}
+
 	pub fn previous(&self) -> Option<CharWithIndex> {
 		if self.curr_index < 2 || self.curr_index - 2 >= self.bytes.len() {
 			return None;

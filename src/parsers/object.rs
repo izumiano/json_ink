@@ -16,6 +16,7 @@ pub struct JsonObject<'a>(pub(crate) IndexMap<String, JsonValue<'a>>);
 pub struct IncJsonObject<'a> {
 	pub map: IndexMap<String, JsonValue<'a>>,
 	pub newest_property: Option<IncProperty<'a>>,
+	escape_next: bool,
 }
 
 #[derive(PartialEq, Debug)]
@@ -60,6 +61,7 @@ impl<'a> IncJsonObject<'a> {
 		Self {
 			map,
 			newest_property,
+			escape_next: false,
 		}
 	}
 
@@ -113,6 +115,7 @@ impl<'a> JsonObject<'a> {
 		let val = IncJsonObject {
 			map: IndexMap::new(),
 			newest_property: None,
+			escape_next: false,
 		};
 
 		let val = val.parse(sr);
@@ -205,17 +208,21 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 
 impl<'a> IncJsonObject<'a> {
 	fn parse_key(
-		&self,
+		&mut self,
 		sr: &mut StringReader,
 		first: usize,
 		first_off: usize,
 		quoted: bool,
 	) -> Option<(PropertyKey, bool)> {
 		let prop_end = if quoted {
-			let Some(property_name_end) = sr.find_quote() else {
+			let quote_result = sr.find_quote(self.escape_next);
+
+			let Some(property_name_end) = quote_result.end_quote else {
 				trace!("Failed finding '\"'");
 
 				let name = sr.get_range((first + first_off)..sr.curr_index);
+
+				self.escape_next = quote_result.escape_next;
 
 				return Some((
 					PropertyKey::Incomplete(IncPropertyKey {

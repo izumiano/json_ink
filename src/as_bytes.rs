@@ -91,3 +91,9 @@ impl CollectBytes for &[char] {
 			.collect::<Vec<_>>()
 	}
 }
+
+impl CollectBytes for char {
+	fn collect_bytes(self) -> Vec<u8> {
+		self.to_string().into_bytes()
+	}
+}
