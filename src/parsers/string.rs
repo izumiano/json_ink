@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, str::Utf8Error};
 
 use logging::*;
 
@@ -15,6 +15,18 @@ pub struct JsonString(pub String);
 pub struct IncJsonString {
 	string: IncString,
 	escape_next: bool,
+}
+
+impl IncJsonString {
+	#[allow(unused)]
+	pub fn to_valid_str(&self) -> &str {
+		self.string.to_valid_str()
+	}
+
+	#[allow(unused)]
+	pub fn to_str(&self) -> Result<&str, Utf8Error> {
+		self.string.to_str()
+	}
 }
 
 impl Debug for JsonString {

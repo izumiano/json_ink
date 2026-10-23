@@ -16,7 +16,7 @@ pub struct JsonObject<'a>(pub(crate) IndexMap<String, JsonValue<'a>>);
 pub struct IncJsonObject<'a> {
 	pub map: IndexMap<String, JsonValue<'a>>,
 	pub newest_property: Option<IncProperty<'a>>,
-	escape_next: bool,
+	pub escape_next: bool,
 }
 
 #[derive(PartialEq, Debug)]
