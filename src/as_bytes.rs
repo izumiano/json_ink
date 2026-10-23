@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub trait AsBytes {
 	fn as_bytes(&self) -> &[u8];
 }
@@ -38,6 +40,12 @@ impl AsBytes for String {
 	}
 }
 
+impl AsBytes for Vec<u8> {
+	fn as_bytes(&self) -> &[u8] {
+		self
+	}
+}
+
 //
 
 #[allow(unused)]
@@ -66,5 +74,20 @@ impl AsBytesMut for &mut str {
 impl AsBytesMut for &mut String {
 	fn as_bytes_mut(&mut self) -> &mut [u8] {
 		unsafe { str::as_bytes_mut(self) }
+	}
+}
+
+//
+
+pub trait CollectBytes {
+	fn collect_bytes(self) -> Vec<u8>;
+}
+
+impl CollectBytes for &[char] {
+	fn collect_bytes(self) -> Vec<u8> {
+		self
+			.iter()
+			.flat_map(|char| char.to_string().as_bytes().to_vec())
+			.collect::<Vec<_>>()
 	}
 }

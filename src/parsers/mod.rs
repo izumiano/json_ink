@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, str::Utf8Error};
 
 use logging::*;
 
@@ -328,6 +328,29 @@ macro_rules! json_parse {
 	}};
 	($val:literal) => {
 		JsonInk::parse($val)
+	}
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct IncString {
+	pub(crate) data: Vec<u8>,
+}
+
+impl IncString {
+	#[allow(unused)]
+	pub fn to_valid_string(&self) -> &str {
+		match str::from_utf8(&self.data) {
+			Ok(str) => str,
+			Err(err) => str::from_utf8(&self.data[..err.valid_up_to()]).unwrap(),
+		}
+	}
+
+	pub fn to_string(&self) -> Result<&str, Utf8Error> {
+		str::from_utf8(&self.data)
+	}
+
+	fn combine_strings(&mut self, other: &[u8]) {
+		self.data.extend_from_slice(other);
 	}
 }
 

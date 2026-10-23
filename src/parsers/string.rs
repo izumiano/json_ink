@@ -4,7 +4,7 @@ use logging::*;
 
 use crate::{
 	json_reader::JsonReader,
-	parsers::{JsonParsable, JsonValue},
+	parsers::{IncString, JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
 
@@ -12,7 +12,7 @@ use crate::{
 pub struct JsonString(pub String);
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct IncJsonString(pub Option<Vec<u8>>);
+pub struct IncJsonString(pub IncString);
 
 impl Debug for JsonString {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -31,44 +31,24 @@ impl JsonString {
 
 		trace!("is string");
 
-		let val = IncJsonString(None);
+		let val = IncJsonString(IncString { data: vec![] });
 
 		Some(val.parse(sr))
 	}
 }
 
-impl IncJsonString {
-	#[allow(unused)]
-	pub fn get_string(&self) -> Option<&str> {
-		match &self.0 {
-			Some(data) => match str::from_utf8(data) {
-				Ok(str) => Some(str),
-				Err(err) => Some(str::from_utf8(&data[..err.valid_up_to()]).unwrap()),
-			},
-			None => None,
-		}
-	}
-
-	fn combine_strings(mut self, other: &[u8]) -> Self {
-		match &mut self.0 {
-			Some(old_str) => old_str.extend_from_slice(other),
-			None => self.0 = Some(other.to_vec()),
-		};
-
-		self
-	}
-}
-
 impl<'a> JsonParsable<'a> for IncJsonString {
-	fn parse(self, sr: &mut StringReader) -> JsonValue<'a> {
+	fn parse(mut self, sr: &mut StringReader) -> JsonValue<'a> {
 		let start_index = sr.curr_index;
 
 		let str = if let Some(string_end) = sr.find_quote() {
 			let str = sr.get_range(start_index..string_end.index);
-			self.combine_strings(str).finish()
+			self.0.combine_strings(str);
+			self.finish()
 		} else {
 			let str = sr.get_range(start_index..sr.curr_index);
-			self.combine_strings(str).into()
+			self.0.combine_strings(str);
+			self.into()
 		};
 
 		trace!("string.parse", str);
@@ -79,8 +59,7 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish string", self);
 
-		let data = self.0.unwrap();
-		let str = str::from_utf8(&data).unwrap();
+		let str = self.0.to_string().unwrap();
 
 		JsonString(str.into()).into()
 	}
