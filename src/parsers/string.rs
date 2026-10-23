@@ -43,11 +43,11 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 
 		let str = if let Some(string_end) = sr.find_quote() {
 			let str = sr.get_range(start_index..string_end.index);
-			self.0.combine_strings(str);
+			self.0.combine_strings(&str);
 			self.finish()
 		} else {
 			let str = sr.get_range(start_index..sr.curr_index);
-			self.0.combine_strings(str);
+			self.0.combine_strings(&str);
 			self.into()
 		};
 
@@ -59,7 +59,7 @@ impl<'a> JsonParsable<'a> for IncJsonString {
 	fn finish(self) -> JsonValue<'a> {
 		trace!("Finish string", self);
 
-		let str = self.0.to_string().unwrap();
+		let str = self.0.to_str().unwrap();
 
 		JsonString(str.into()).into()
 	}

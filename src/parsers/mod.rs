@@ -338,19 +338,49 @@ pub struct IncString {
 
 impl IncString {
 	#[allow(unused)]
-	pub fn to_valid_string(&self) -> &str {
+	pub fn to_valid_str(&self) -> &str {
 		match str::from_utf8(&self.data) {
 			Ok(str) => str,
 			Err(err) => str::from_utf8(&self.data[..err.valid_up_to()]).unwrap(),
 		}
 	}
 
-	pub fn to_string(&self) -> Result<&str, Utf8Error> {
+	pub fn to_str(&self) -> Result<&str, Utf8Error> {
 		str::from_utf8(&self.data)
 	}
 
-	fn combine_strings(&mut self, other: &[u8]) {
-		self.data.extend_from_slice(other);
+	fn combine_strings<T>(&mut self, other: &T)
+	where
+		T: AsBytes + ?Sized,
+	{
+		self.data.extend_from_slice(other.as_bytes());
+	}
+}
+
+impl AsBytes for IncString {
+	fn as_bytes(&self) -> &[u8] {
+		&self.data
+	}
+}
+
+#[allow(unused)]
+pub(crate) trait ToIncString {
+	fn to_inc_string(self) -> IncString;
+}
+
+impl ToIncString for &str {
+	fn to_inc_string(self) -> IncString {
+		IncString {
+			data: self.as_bytes().to_vec(),
+		}
+	}
+}
+
+impl ToIncString for String {
+	fn to_inc_string(self) -> IncString {
+		IncString {
+			data: self.as_bytes().to_vec(),
+		}
 	}
 }
 
@@ -977,7 +1007,7 @@ mod tests {
 			.into()
 		);
 
-		assert_split_eq!(@chars, @bytes, r#""–""#, JsonValue::String(JsonString("–".into())));
+		assert_split_eq!(@chars, @bytes, r#"{"❤️": 10}"#, JsonObject::new(vec![("❤️", JsonValue::Number(JsonNumber(10.)))]).into());
 	}
 
 	#[test]
@@ -1002,7 +1032,7 @@ mod tests {
 				vec![],
 				Some(IncProperty {
 					key: PropertyKey::Incomplete(IncPropertyKey {
-						name: "prop two}".to_string(),
+						name: "prop two}".to_inc_string(),
 						quoted: false
 					},),
 					value: Box::new(None),
@@ -1063,6 +1093,8 @@ mod tests {
 			)])
 			.into()
 		);
+
+		assert_split_eq!(@chars, @bytes, r#"{❤️: 10}"#, JsonObject::new(vec![("❤️", JsonValue::Number(JsonNumber(10.)))]).into());
 	}
 
 	#[test]

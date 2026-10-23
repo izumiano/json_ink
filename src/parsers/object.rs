@@ -5,7 +5,7 @@ use logging::*;
 
 use crate::{
 	json_reader::JsonReader,
-	parsers::{JsonParsable, JsonValue},
+	parsers::{IncString, JsonParsable, JsonValue},
 	string_reader::{CharWithIndex, StringReader},
 };
 
@@ -32,7 +32,7 @@ pub enum PropertyKey {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct IncPropertyKey {
-	pub name: String, // TODO: handle incomplete unicode characters
+	pub name: IncString,
 	pub quoted: bool,
 }
 
@@ -176,7 +176,7 @@ impl<'a> JsonParsable<'a> for IncJsonObject<'a> {
 					{
 						let key = match &prop.key {
 							PropertyKey::Complete(name) => name,
-							PropertyKey::Incomplete(inc_property_key) => &inc_property_key.name,
+							PropertyKey::Incomplete(inc_property_key) => inc_property_key.name.to_valid_str(),
 						};
 
 						if matches!(key.chars().nth(0), Some('"' | ',')) {
@@ -214,28 +214,36 @@ impl<'a> IncJsonObject<'a> {
 		let prop_end = if quoted {
 			let Some(property_name_end) = sr.find_quote() else {
 				trace!("Failed finding '\"'");
-				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
-					return Some((
-						PropertyKey::Incomplete(IncPropertyKey { name, quoted }),
-						false,
-					));
-				}
 
-				return None;
+				let name = sr.get_range((first + first_off)..sr.curr_index);
+
+				return Some((
+					PropertyKey::Incomplete(IncPropertyKey {
+						name: IncString {
+							data: name.to_vec(),
+						},
+						quoted,
+					}),
+					false,
+				));
 			};
 
 			property_name_end.index
 		} else {
 			let Some(property_name_end) = sr.find(|c| c.char == b':') else {
 				trace!("Failed finding ':'");
-				if let Ok(name) = sr.get_string((first + first_off)..sr.curr_index) {
-					return Some((
-						PropertyKey::Incomplete(IncPropertyKey { name, quoted }),
-						false,
-					));
-				}
 
-				return None;
+				let name = sr.get_range((first + first_off)..sr.curr_index);
+
+				return Some((
+					PropertyKey::Incomplete(IncPropertyKey {
+						name: IncString {
+							data: name.to_vec(),
+						},
+						quoted,
+					}),
+					false,
+				));
 			};
 
 			sr.curr_index -= 1;
@@ -293,11 +301,11 @@ impl<'a> IncJsonObject<'a> {
 					property_key = match key {
 						(PropertyKey::Complete(name), _found_colon) => {
 							found_colon = _found_colon;
-							PropertyKey::Complete(orig_prop.name + &name)
+							PropertyKey::Complete(orig_prop.name.to_str().unwrap().to_string() + &name)
 						}
 						(PropertyKey::Incomplete(name), _found_colon) => {
 							found_colon = _found_colon;
-							orig_prop.name += &name.name;
+							orig_prop.name.combine_strings(&name.name);
 							PropertyKey::Incomplete(orig_prop)
 						}
 					};
@@ -358,7 +366,8 @@ impl<'a> IncJsonObject<'a> {
 				| JsonValue::IncNull(_)
 				| JsonValue::IncNumber(_)
 				| JsonValue::IncObject(_)
-				| JsonValue::IncString(_),
+				| JsonValue::IncString(_)
+				| JsonValue::IncInvalid(_),
 			)
 			| None => Some(Property::Incomplete(IncProperty {
 				key: property_key,
@@ -368,7 +377,7 @@ impl<'a> IncJsonObject<'a> {
 			Some(property_value) => Some(Property::Complete(
 				match property_key {
 					PropertyKey::Complete(name) => name,
-					PropertyKey::Incomplete(prop) => prop.name,
+					PropertyKey::Incomplete(prop) => prop.name.to_str().unwrap().to_string(),
 				},
 				property_value,
 			)),
@@ -381,7 +390,7 @@ impl PropertyKey {
 	pub fn take_key(self) -> String {
 		match self {
 			PropertyKey::Complete(key) => key,
-			PropertyKey::Incomplete(key) => key.name,
+			PropertyKey::Incomplete(key) => key.name.to_valid_str().to_string(),
 		}
 	}
 }
